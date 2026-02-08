@@ -12,7 +12,9 @@ import { execSync } from 'child_process'
 
 const STATE_PATH = join(homedir(), '.openclaw', 'thomas-state.json')
 const ACTIVE_DIR = join(homedir(), '.openclaw', 'projects', 'active')
-const RESET_HOURS = [0, 5, 10, 15, 20]
+// Reset hours in Europe/Paris timezone
+// Confirmed: 1h, 6h, 11h, 16h, 21h Paris
+const RESET_HOURS = [1, 6, 11, 16, 21]
 
 interface PausedProject {
   id: string
@@ -45,18 +47,38 @@ interface ThomasStatus {
 
 function getNextReset(): Date {
   const now = new Date()
-  const parisTime = new Date(now.toLocaleString('en-US', { timeZone: 'Europe/Paris' }))
-  const currentHour = parisTime.getHours()
   
+  // Get current hour in Paris timezone
+  const parisFormatter = new Intl.DateTimeFormat('en-US', {
+    timeZone: 'Europe/Paris',
+    hour: 'numeric',
+    hour12: false
+  })
+  const currentHour = parseInt(parisFormatter.format(now), 10)
+  
+  // Find next reset hour
   let nextHour = RESET_HOURS.find(h => h > currentHour)
+  let daysToAdd = 0
   
   if (nextHour === undefined) {
     nextHour = RESET_HOURS[0]
-    parisTime.setDate(parisTime.getDate() + 1)
+    daysToAdd = 1
   }
   
-  parisTime.setHours(nextHour, 0, 0, 0)
-  return parisTime
+  // Create date for next reset in Paris timezone
+  const parisDateFormatter = new Intl.DateTimeFormat('en-CA', {
+    timeZone: 'Europe/Paris',
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit'
+  })
+  const [year, month, day] = parisDateFormatter.format(now).split('-').map(Number)
+  
+  // Create the reset time in UTC (Paris is UTC+1 in winter, UTC+2 in summer)
+  // For simplicity, assume UTC+1 (CET)
+  const resetDate = new Date(Date.UTC(year, month - 1, day + daysToAdd, nextHour - 1, 0, 0))
+  
+  return resetDate
 }
 
 function getHealth(percent: number): 'green' | 'yellow' | 'red' {
