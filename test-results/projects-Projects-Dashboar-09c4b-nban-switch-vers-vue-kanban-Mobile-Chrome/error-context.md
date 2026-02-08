@@ -1,0 +1,548 @@
+# Page snapshot
+
+```yaml
+- generic [ref=e3]:
+  - navigation [ref=e4]:
+    - generic [ref=e6]:
+      - link "🦞 OpenClaw" [ref=e8] [cursor=pointer]:
+        - /url: /
+        - generic [ref=e9]: 🦞
+        - generic [ref=e10]: OpenClaw
+      - generic [ref=e11]:
+        - generic [ref=e12]:
+          - generic [ref=e15]: "0"
+          - generic [ref=e18]: "1"
+          - generic [ref=e21]: "16"
+        - generic [ref=e23]: Tokens:799k
+        - generic [ref=e24]:
+          - generic [ref=e25]: ⚠️
+          - generic [ref=e26]: 1 > 80%
+        - generic [ref=e28]: À l'instant
+        - link "🧪" [ref=e29] [cursor=pointer]:
+          - /url: /tests
+        - button "Rafraîchir" [ref=e30] [cursor=pointer]:
+          - img [ref=e31]
+  - main [ref=e33]:
+    - generic [ref=e34]:
+      - generic [ref=e35]:
+        - generic [ref=e36]:
+          - heading "📋 Projets" [level=2] [ref=e37]
+          - paragraph [ref=e38]: 3 projets
+        - generic [ref=e39]:
+          - combobox [ref=e40]:
+            - option "Tous les agents" [selected]
+            - option "amelia-dev"
+            - option "claudio-openclaw"
+            - option "taylor-qa"
+            - option "winston-architecte"
+          - combobox [ref=e41]:
+            - option "Tous les status" [selected]
+            - option "⚠️ Stale"
+            - option "En cours"
+            - option "Planification"
+            - option "En revue"
+            - option "En pause"
+            - option "Terminés"
+          - generic [ref=e42]:
+            - button "▦" [ref=e43] [cursor=pointer]
+            - button "▤" [ref=e44] [cursor=pointer]
+          - button "+ Nouveau" [ref=e45] [cursor=pointer]
+      - generic [ref=e46]:
+        - link "💻 Projet Stale code ⚠️ 48h En cours Un projet sans update depuis 48h Démarrage 30% 👥 1 agent 🔄 Il y a 2j" [ref=e47] [cursor=pointer]:
+          - /url: /project/proj-1
+          - generic [ref=e48]:
+            - generic [ref=e49]:
+              - generic [ref=e50]: 💻
+              - generic [ref=e51]:
+                - heading "Projet Stale" [level=3] [ref=e53]
+                - paragraph [ref=e54]: code
+            - generic [ref=e55]:
+              - generic "Pas de mise à jour depuis 48h" [ref=e56]: ⚠️ 48h
+              - generic [ref=e57]: En cours
+          - paragraph [ref=e58]: Un projet sans update depuis 48h
+          - generic [ref=e60]:
+            - generic [ref=e61]: Démarrage
+            - generic [ref=e62]: 30%
+          - generic [ref=e65]:
+            - generic [ref=e67]: 👥 1 agent
+            - generic [ref=e68]:
+              - button "🔄" [ref=e69]
+              - generic [ref=e70]: Il y a 2j
+        - link "✍️ Projet Actif writing En cours Un projet récemment mis à jour Démarrage 60% 👥 2 agents 📋 1/2 phases 🔄 Il y a 2h" [ref=e71] [cursor=pointer]:
+          - /url: /project/proj-2
+          - generic [ref=e72]:
+            - generic [ref=e73]:
+              - generic [ref=e74]: ✍️
+              - generic [ref=e75]:
+                - heading "Projet Actif" [level=3] [ref=e77]
+                - paragraph [ref=e78]: writing
+            - generic [ref=e80]: En cours
+          - paragraph [ref=e81]: Un projet récemment mis à jour
+          - generic [ref=e83]:
+            - generic [ref=e84]: Démarrage
+            - generic [ref=e85]: 60%
+          - generic [ref=e88]:
+            - generic [ref=e89]:
+              - generic [ref=e90]: 👥 2 agents
+              - generic [ref=e91]: 📋 1/2 phases
+            - generic [ref=e92]:
+              - button "🔄" [ref=e93]
+              - generic [ref=e94]: Il y a 2h
+        - link "💻 Projet Terminé code Terminé Un projet complété Démarrage 100% 👥 1 agent Il y a 4j" [ref=e95] [cursor=pointer]:
+          - /url: /project/proj-3
+          - generic [ref=e96]:
+            - generic [ref=e97]:
+              - generic [ref=e98]: 💻
+              - generic [ref=e99]:
+                - heading "Projet Terminé" [level=3] [ref=e101]
+                - paragraph [ref=e102]: code
+            - generic [ref=e104]: Terminé
+          - paragraph [ref=e105]: Un projet complété
+          - generic [ref=e107]:
+            - generic [ref=e108]: Démarrage
+            - generic [ref=e109]: 100%
+          - generic [ref=e112]:
+            - generic [ref=e114]: 👥 1 agent
+            - generic [ref=e116]: Il y a 4j
+    - generic [ref=e117]:
+      - heading "Agents" [level=2] [ref=e119]
+      - generic [ref=e120]:
+        - 'link "A Amelia 💻 code amelia-dev Inactif Tokens 144.9k Contexte 72% Opus 1 session Il y a 3m 🧠 Délibération: Dashboard Agents OpenClaw-UI 144.9k" [ref=e121] [cursor=pointer]':
+          - /url: /agent/amelia-dev
+          - 'link "A Amelia 💻 code amelia-dev Inactif Tokens 144.9k Contexte 72% Opus 1 session Il y a 3m 🧠 Délibération: Dashboard Agents OpenClaw-UI 144.9k" [ref=e122]':
+            - /url: /agent/amelia-dev
+            - generic [ref=e123]:
+              - generic [ref=e124]:
+                - generic [ref=e125]: A
+                - generic [ref=e126]:
+                  - generic [ref=e127]:
+                    - heading "Amelia 💻" [level=3] [ref=e128]
+                    - generic [ref=e129]: code
+                  - paragraph [ref=e130]: amelia-dev
+              - generic [ref=e131]: Inactif
+            - generic [ref=e133]:
+              - generic [ref=e134]:
+                - generic [ref=e135]: Tokens
+                - generic [ref=e136]: 144.9k
+              - generic [ref=e137]:
+                - generic [ref=e138]: Contexte
+                - generic [ref=e142]: 72%
+            - generic [ref=e143]:
+              - generic [ref=e144]:
+                - generic [ref=e145]: Opus
+                - generic [ref=e146]: 1 session
+              - generic [ref=e147]: Il y a 3m
+            - generic [ref=e149]:
+              - generic [ref=e150]: "🧠 Délibération: Dashboard Agents OpenClaw-UI"
+              - generic [ref=e151]: 144.9k
+        - link "A Axis Thorne 📐 writing axis-thorne Hors ligne Tokens 0 Contexte 0% 0 session Jamais" [ref=e152] [cursor=pointer]:
+          - /url: /agent/axis-thorne
+          - link "A Axis Thorne 📐 writing axis-thorne Hors ligne Tokens 0 Contexte 0% 0 session Jamais" [ref=e153]:
+            - /url: /agent/axis-thorne
+            - generic [ref=e154]:
+              - generic [ref=e155]:
+                - generic [ref=e156]: A
+                - generic [ref=e157]:
+                  - generic [ref=e158]:
+                    - heading "Axis Thorne 📐" [level=3] [ref=e159]
+                    - generic [ref=e160]: writing
+                  - paragraph [ref=e161]: axis-thorne
+              - generic [ref=e162]: Hors ligne
+            - generic [ref=e164]:
+              - generic [ref=e165]:
+                - generic [ref=e166]: Tokens
+                - generic [ref=e167]: "0"
+              - generic [ref=e168]:
+                - generic [ref=e169]: Contexte
+                - generic [ref=e172]: 0%
+            - generic [ref=e173]:
+              - generic [ref=e175]: 0 session
+              - generic [ref=e176]: Jamais
+        - 'link "C Claudio ⚙️ code claudio-openclaw Hors ligne Tokens 95.9k Contexte 48% Opus 1 session Il y a 37m 🧠 Délibération: Dashboard Agents OpenClaw-UI 95.9k" [ref=e177] [cursor=pointer]':
+          - /url: /agent/claudio-openclaw
+          - 'link "C Claudio ⚙️ code claudio-openclaw Hors ligne Tokens 95.9k Contexte 48% Opus 1 session Il y a 37m 🧠 Délibération: Dashboard Agents OpenClaw-UI 95.9k" [ref=e178]':
+            - /url: /agent/claudio-openclaw
+            - generic [ref=e179]:
+              - generic [ref=e180]:
+                - generic [ref=e181]: C
+                - generic [ref=e182]:
+                  - generic [ref=e183]:
+                    - heading "Claudio ⚙️" [level=3] [ref=e184]
+                    - generic [ref=e185]: code
+                  - paragraph [ref=e186]: claudio-openclaw
+              - generic [ref=e187]: Hors ligne
+            - generic [ref=e189]:
+              - generic [ref=e190]:
+                - generic [ref=e191]: Tokens
+                - generic [ref=e192]: 95.9k
+              - generic [ref=e193]:
+                - generic [ref=e194]: Contexte
+                - generic [ref=e198]: 48%
+            - generic [ref=e199]:
+              - generic [ref=e200]:
+                - generic [ref=e201]: Opus
+                - generic [ref=e202]: 1 session
+              - generic [ref=e203]: Il y a 37m
+            - generic [ref=e205]:
+              - generic [ref=e206]: "🧠 Délibération: Dashboard Agents OpenClaw-UI"
+              - generic [ref=e207]: 95.9k
+        - link "C Cosmos Vale 🌍 writing cosmos-vale Hors ligne Tokens 0 Contexte 0% 0 session Jamais" [ref=e208] [cursor=pointer]:
+          - /url: /agent/cosmos-vale
+          - link "C Cosmos Vale 🌍 writing cosmos-vale Hors ligne Tokens 0 Contexte 0% 0 session Jamais" [ref=e209]:
+            - /url: /agent/cosmos-vale
+            - generic [ref=e210]:
+              - generic [ref=e211]:
+                - generic [ref=e212]: C
+                - generic [ref=e213]:
+                  - generic [ref=e214]:
+                    - heading "Cosmos Vale 🌍" [level=3] [ref=e215]
+                    - generic [ref=e216]: writing
+                  - paragraph [ref=e217]: cosmos-vale
+              - generic [ref=e218]: Hors ligne
+            - generic [ref=e220]:
+              - generic [ref=e221]:
+                - generic [ref=e222]: Tokens
+                - generic [ref=e223]: "0"
+              - generic [ref=e224]:
+                - generic [ref=e225]: Contexte
+                - generic [ref=e228]: 0%
+            - generic [ref=e229]:
+              - generic [ref=e231]: 0 session
+              - generic [ref=e232]: Jamais
+        - link "D Damasio 🧠 writing damasio Hors ligne Tokens 52.0k Contexte 26% Opus 1 session Il y a 1h agent:damasio:main 52.0k" [ref=e233] [cursor=pointer]:
+          - /url: /agent/damasio
+          - link "D Damasio 🧠 writing damasio Hors ligne Tokens 52.0k Contexte 26% Opus 1 session Il y a 1h agent:damasio:main 52.0k" [ref=e234]:
+            - /url: /agent/damasio
+            - generic [ref=e235]:
+              - generic [ref=e236]:
+                - generic [ref=e237]: D
+                - generic [ref=e238]:
+                  - generic [ref=e239]:
+                    - heading "Damasio 🧠" [level=3] [ref=e240]
+                    - generic [ref=e241]: writing
+                  - paragraph [ref=e242]: damasio
+              - generic [ref=e243]: Hors ligne
+            - generic [ref=e245]:
+              - generic [ref=e246]:
+                - generic [ref=e247]: Tokens
+                - generic [ref=e248]: 52.0k
+              - generic [ref=e249]:
+                - generic [ref=e250]: Contexte
+                - generic [ref=e254]: 26%
+            - generic [ref=e255]:
+              - generic [ref=e256]:
+                - generic [ref=e257]: Opus
+                - generic [ref=e258]: 1 session
+              - generic [ref=e259]: Il y a 1h
+            - generic [ref=e261]:
+              - generic [ref=e262]: agent:damasio:main
+              - generic [ref=e263]: 52.0k
+        - link "E Elon Musk 🚀 free elon-musk Hors ligne Tokens 0 Contexte 0% 0 session Jamais" [ref=e264] [cursor=pointer]:
+          - /url: /agent/elon-musk
+          - link "E Elon Musk 🚀 free elon-musk Hors ligne Tokens 0 Contexte 0% 0 session Jamais" [ref=e265]:
+            - /url: /agent/elon-musk
+            - generic [ref=e266]:
+              - generic [ref=e267]:
+                - generic [ref=e268]: E
+                - generic [ref=e269]:
+                  - generic [ref=e270]:
+                    - heading "Elon Musk 🚀" [level=3] [ref=e271]
+                    - generic [ref=e272]: free
+                  - paragraph [ref=e273]: elon-musk
+              - generic [ref=e274]: Hors ligne
+            - generic [ref=e276]:
+              - generic [ref=e277]:
+                - generic [ref=e278]: Tokens
+                - generic [ref=e279]: "0"
+              - generic [ref=e280]:
+                - generic [ref=e281]: Contexte
+                - generic [ref=e284]: 0%
+            - generic [ref=e285]:
+              - generic [ref=e287]: 0 session
+              - generic [ref=e288]: Jamais
+        - link "E Elon Muskito 🦟 free elon-muskito Hors ligne Tokens 0 Contexte 0% 0 session Jamais" [ref=e289] [cursor=pointer]:
+          - /url: /agent/elon-muskito
+          - link "E Elon Muskito 🦟 free elon-muskito Hors ligne Tokens 0 Contexte 0% 0 session Jamais" [ref=e290]:
+            - /url: /agent/elon-muskito
+            - generic [ref=e291]:
+              - generic [ref=e292]:
+                - generic [ref=e293]: E
+                - generic [ref=e294]:
+                  - generic [ref=e295]:
+                    - heading "Elon Muskito 🦟" [level=3] [ref=e296]
+                    - generic [ref=e297]: free
+                  - paragraph [ref=e298]: elon-muskito
+              - generic [ref=e299]: Hors ligne
+            - generic [ref=e301]:
+              - generic [ref=e302]:
+                - generic [ref=e303]: Tokens
+                - generic [ref=e304]: "0"
+              - generic [ref=e305]:
+                - generic [ref=e306]: Contexte
+                - generic [ref=e309]: 0%
+            - generic [ref=e310]:
+              - generic [ref=e312]: 0 session
+              - generic [ref=e313]: Jamais
+        - link "I Iris Harrow 🔍 writing iris-harrow Hors ligne Tokens 0 Contexte 0% 0 session Jamais" [ref=e314] [cursor=pointer]:
+          - /url: /agent/iris-harrow
+          - link "I Iris Harrow 🔍 writing iris-harrow Hors ligne Tokens 0 Contexte 0% 0 session Jamais" [ref=e315]:
+            - /url: /agent/iris-harrow
+            - generic [ref=e316]:
+              - generic [ref=e317]:
+                - generic [ref=e318]: I
+                - generic [ref=e319]:
+                  - generic [ref=e320]:
+                    - heading "Iris Harrow 🔍" [level=3] [ref=e321]
+                    - generic [ref=e322]: writing
+                  - paragraph [ref=e323]: iris-harrow
+              - generic [ref=e324]: Hors ligne
+            - generic [ref=e326]:
+              - generic [ref=e327]:
+                - generic [ref=e328]: Tokens
+                - generic [ref=e329]: "0"
+              - generic [ref=e330]:
+                - generic [ref=e331]: Contexte
+                - generic [ref=e334]: 0%
+            - generic [ref=e335]:
+              - generic [ref=e337]: 0 session
+              - generic [ref=e338]: Jamais
+        - 'link "J John 📋 code john-pm Hors ligne Tokens 47.9k Contexte 24% Opus 1 session Il y a 3h 🧠 Délibération: Dashboard Agents OpenClaw-UI 47.9k" [ref=e339] [cursor=pointer]':
+          - /url: /agent/john-pm
+          - 'link "J John 📋 code john-pm Hors ligne Tokens 47.9k Contexte 24% Opus 1 session Il y a 3h 🧠 Délibération: Dashboard Agents OpenClaw-UI 47.9k" [ref=e340]':
+            - /url: /agent/john-pm
+            - generic [ref=e341]:
+              - generic [ref=e342]:
+                - generic [ref=e343]: J
+                - generic [ref=e344]:
+                  - generic [ref=e345]:
+                    - heading "John 📋" [level=3] [ref=e346]
+                    - generic [ref=e347]: code
+                  - paragraph [ref=e348]: john-pm
+              - generic [ref=e349]: Hors ligne
+            - generic [ref=e351]:
+              - generic [ref=e352]:
+                - generic [ref=e353]: Tokens
+                - generic [ref=e354]: 47.9k
+              - generic [ref=e355]:
+                - generic [ref=e356]: Contexte
+                - generic [ref=e360]: 24%
+            - generic [ref=e361]:
+              - generic [ref=e362]:
+                - generic [ref=e363]: Opus
+                - generic [ref=e364]: 1 session
+              - generic [ref=e365]: Il y a 3h
+            - generic [ref=e367]:
+              - generic [ref=e368]: "🧠 Délibération: Dashboard Agents OpenClaw-UI"
+              - generic [ref=e369]: 47.9k
+        - link "M Main unknown main Hors ligne Tokens 0 Contexte 0% 0 session Jamais" [ref=e370] [cursor=pointer]:
+          - /url: /agent/main
+          - link "M Main unknown main Hors ligne Tokens 0 Contexte 0% 0 session Jamais" [ref=e371]:
+            - /url: /agent/main
+            - generic [ref=e372]:
+              - generic [ref=e373]:
+                - generic [ref=e374]: M
+                - generic [ref=e375]:
+                  - generic [ref=e376]:
+                    - heading "Main" [level=3] [ref=e377]
+                    - generic [ref=e378]: unknown
+                  - paragraph [ref=e379]: main
+              - generic [ref=e380]: Hors ligne
+            - generic [ref=e382]:
+              - generic [ref=e383]:
+                - generic [ref=e384]: Tokens
+                - generic [ref=e385]: "0"
+              - generic [ref=e386]:
+                - generic [ref=e387]: Contexte
+                - generic [ref=e390]: 0%
+            - generic [ref=e391]:
+              - generic [ref=e393]: 0 session
+              - generic [ref=e394]: Jamais
+        - link "M Maya Chen 🧠 writing maya-chen Hors ligne Tokens 21.8k Contexte 11% Opus 1 session Il y a 3h 🎉 Party Mode (BMAD) 21.8k" [ref=e395] [cursor=pointer]:
+          - /url: /agent/maya-chen
+          - link "M Maya Chen 🧠 writing maya-chen Hors ligne Tokens 21.8k Contexte 11% Opus 1 session Il y a 3h 🎉 Party Mode (BMAD) 21.8k" [ref=e396]:
+            - /url: /agent/maya-chen
+            - generic [ref=e397]:
+              - generic [ref=e398]:
+                - generic [ref=e399]: M
+                - generic [ref=e400]:
+                  - generic [ref=e401]:
+                    - heading "Maya Chen 🧠" [level=3] [ref=e402]
+                    - generic [ref=e403]: writing
+                  - paragraph [ref=e404]: maya-chen
+              - generic [ref=e405]: Hors ligne
+            - generic [ref=e407]:
+              - generic [ref=e408]:
+                - generic [ref=e409]: Tokens
+                - generic [ref=e410]: 21.8k
+              - generic [ref=e411]:
+                - generic [ref=e412]: Contexte
+                - generic [ref=e416]: 11%
+            - generic [ref=e417]:
+              - generic [ref=e418]:
+                - generic [ref=e419]: Opus
+                - generic [ref=e420]: 1 session
+              - generic [ref=e421]: Il y a 3h
+            - generic [ref=e423]:
+              - generic [ref=e424]: 🎉 Party Mode (BMAD)
+              - generic [ref=e425]: 21.8k
+        - link "M Mnemosyne 📚 writing mnemosyne Hors ligne Tokens 0 Contexte 0% 0 session Jamais" [ref=e426] [cursor=pointer]:
+          - /url: /agent/mnemosyne
+          - link "M Mnemosyne 📚 writing mnemosyne Hors ligne Tokens 0 Contexte 0% 0 session Jamais" [ref=e427]:
+            - /url: /agent/mnemosyne
+            - generic [ref=e428]:
+              - generic [ref=e429]:
+                - generic [ref=e430]: M
+                - generic [ref=e431]:
+                  - generic [ref=e432]:
+                    - heading "Mnemosyne 📚" [level=3] [ref=e433]
+                    - generic [ref=e434]: writing
+                  - paragraph [ref=e435]: mnemosyne
+              - generic [ref=e436]: Hors ligne
+            - generic [ref=e438]:
+              - generic [ref=e439]:
+                - generic [ref=e440]: Tokens
+                - generic [ref=e441]: "0"
+              - generic [ref=e442]:
+                - generic [ref=e443]: Contexte
+                - generic [ref=e446]: 0%
+            - generic [ref=e447]:
+              - generic [ref=e449]: 0 session
+              - generic [ref=e450]: Jamais
+        - 'link "O Orchestrator 🎭 code orchestrator Hors ligne Tokens 129.1k Contexte 41% Opus 3 sessions Il y a 5m 🧠 Délibération: Dashboard Agents OpenClaw-UI 81.6k 🎉 Party Mode (BMAD) 35.6k agent:orchestrator:m 12.0k" [ref=e451] [cursor=pointer]':
+          - /url: /agent/orchestrator
+          - 'link "O Orchestrator 🎭 code orchestrator Hors ligne Tokens 129.1k Contexte 41% Opus 3 sessions Il y a 5m 🧠 Délibération: Dashboard Agents OpenClaw-UI 81.6k 🎉 Party Mode (BMAD) 35.6k agent:orchestrator:m 12.0k" [ref=e452]':
+            - /url: /agent/orchestrator
+            - generic [ref=e453]:
+              - generic [ref=e454]:
+                - generic [ref=e455]: O
+                - generic [ref=e456]:
+                  - generic [ref=e457]:
+                    - heading "Orchestrator 🎭" [level=3] [ref=e458]
+                    - generic [ref=e459]: code
+                  - paragraph [ref=e460]: orchestrator
+              - generic [ref=e461]: Hors ligne
+            - generic [ref=e463]:
+              - generic [ref=e464]:
+                - generic [ref=e465]: Tokens
+                - generic [ref=e466]: 129.1k
+              - generic [ref=e467]:
+                - generic [ref=e468]: Contexte
+                - generic [ref=e472]: 41%
+            - generic [ref=e473]:
+              - generic [ref=e474]:
+                - generic [ref=e475]: Opus
+                - generic [ref=e476]: 3 sessions
+              - generic [ref=e477]: Il y a 5m
+            - generic [ref=e478]:
+              - generic [ref=e479]:
+                - generic [ref=e480]: "🧠 Délibération: Dashboard Agents OpenClaw-UI"
+                - generic [ref=e481]: 81.6k
+              - generic [ref=e482]:
+                - generic [ref=e483]: 🎉 Party Mode (BMAD)
+                - generic [ref=e484]: 35.6k
+              - generic [ref=e485]:
+                - generic [ref=e486]: agent:orchestrator:m
+                - generic [ref=e487]: 12.0k
+        - link "P Pedro 🗃️ code pedro-db Hors ligne Tokens 0 Contexte 0% 0 session Jamais" [ref=e488] [cursor=pointer]:
+          - /url: /agent/pedro-db
+          - link "P Pedro 🗃️ code pedro-db Hors ligne Tokens 0 Contexte 0% 0 session Jamais" [ref=e489]:
+            - /url: /agent/pedro-db
+            - generic [ref=e490]:
+              - generic [ref=e491]:
+                - generic [ref=e492]: P
+                - generic [ref=e493]:
+                  - generic [ref=e494]:
+                    - heading "Pedro 🗃️" [level=3] [ref=e495]
+                    - generic [ref=e496]: code
+                  - paragraph [ref=e497]: pedro-db
+              - generic [ref=e498]: Hors ligne
+            - generic [ref=e500]:
+              - generic [ref=e501]:
+                - generic [ref=e502]: Tokens
+                - generic [ref=e503]: "0"
+              - generic [ref=e504]:
+                - generic [ref=e505]: Contexte
+                - generic [ref=e508]: 0%
+            - generic [ref=e509]:
+              - generic [ref=e511]: 0 session
+              - generic [ref=e512]: Jamais
+        - link "S Silas Wren ✍️ writing silas-wren Hors ligne Tokens 0 Contexte 0% 0 session Jamais" [ref=e513] [cursor=pointer]:
+          - /url: /agent/silas-wren
+          - link "S Silas Wren ✍️ writing silas-wren Hors ligne Tokens 0 Contexte 0% 0 session Jamais" [ref=e514]:
+            - /url: /agent/silas-wren
+            - generic [ref=e515]:
+              - generic [ref=e516]:
+                - generic [ref=e517]: S
+                - generic [ref=e518]:
+                  - generic [ref=e519]:
+                    - heading "Silas Wren ✍️" [level=3] [ref=e520]
+                    - generic [ref=e521]: writing
+                  - paragraph [ref=e522]: silas-wren
+              - generic [ref=e523]: Hors ligne
+            - generic [ref=e525]:
+              - generic [ref=e526]:
+                - generic [ref=e527]: Tokens
+                - generic [ref=e528]: "0"
+              - generic [ref=e529]:
+                - generic [ref=e530]: Contexte
+                - generic [ref=e533]: 0%
+            - generic [ref=e534]:
+              - generic [ref=e536]: 0 session
+              - generic [ref=e537]: Jamais
+        - 'link "T Taylor 🧪 code taylor-qa Hors ligne Tokens 139.0k Contexte 69% Opus 1 session Il y a 8m 🧠 Délibération: Dashboard Agents OpenClaw-UI 139.0k" [ref=e538] [cursor=pointer]':
+          - /url: /agent/taylor-qa
+          - 'link "T Taylor 🧪 code taylor-qa Hors ligne Tokens 139.0k Contexte 69% Opus 1 session Il y a 8m 🧠 Délibération: Dashboard Agents OpenClaw-UI 139.0k" [ref=e539]':
+            - /url: /agent/taylor-qa
+            - generic [ref=e540]:
+              - generic [ref=e541]:
+                - generic [ref=e542]: T
+                - generic [ref=e543]:
+                  - generic [ref=e544]:
+                    - heading "Taylor 🧪" [level=3] [ref=e545]
+                    - generic [ref=e546]: code
+                  - paragraph [ref=e547]: taylor-qa
+              - generic [ref=e548]: Hors ligne
+            - generic [ref=e550]:
+              - generic [ref=e551]:
+                - generic [ref=e552]: Tokens
+                - generic [ref=e553]: 139.0k
+              - generic [ref=e554]:
+                - generic [ref=e555]: Contexte
+                - generic [ref=e559]: 69%
+            - generic [ref=e560]:
+              - generic [ref=e561]:
+                - generic [ref=e562]: Opus
+                - generic [ref=e563]: 1 session
+              - generic [ref=e564]: Il y a 8m
+            - generic [ref=e566]:
+              - generic [ref=e567]: "🧠 Délibération: Dashboard Agents OpenClaw-UI"
+              - generic [ref=e568]: 139.0k
+        - 'link "W Winston 🏗️ code winston-architecte Hors ligne Tokens 168.7k Contexte 84% Opus 1 session Il y a 7m 🧠 Délibération: Dashboard Agents OpenClaw-UI 168.7k" [ref=e569] [cursor=pointer]':
+          - /url: /agent/winston-architecte
+          - 'link "W Winston 🏗️ code winston-architecte Hors ligne Tokens 168.7k Contexte 84% Opus 1 session Il y a 7m 🧠 Délibération: Dashboard Agents OpenClaw-UI 168.7k" [ref=e570]':
+            - /url: /agent/winston-architecte
+            - generic [ref=e571]:
+              - generic [ref=e572]:
+                - generic [ref=e573]: W
+                - generic [ref=e574]:
+                  - generic [ref=e575]:
+                    - heading "Winston 🏗️" [level=3] [ref=e576]
+                    - generic [ref=e577]: code
+                  - paragraph [ref=e578]: winston-architecte
+              - generic [ref=e579]: Hors ligne
+            - generic [ref=e581]:
+              - generic [ref=e582]:
+                - generic [ref=e583]: Tokens
+                - generic [ref=e584]: 168.7k
+              - generic [ref=e585]:
+                - generic [ref=e586]: Contexte
+                - generic [ref=e590]: 84%
+            - generic [ref=e591]:
+              - generic [ref=e592]:
+                - generic [ref=e593]: Opus
+                - generic [ref=e594]: 1 session
+              - generic [ref=e595]: Il y a 7m
+            - generic [ref=e597]:
+              - generic [ref=e598]: "🧠 Délibération: Dashboard Agents OpenClaw-UI"
+              - generic [ref=e599]: 168.7k
+```

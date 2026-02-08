@@ -1,0 +1,105 @@
+# Page snapshot
+
+```yaml
+- generic [ref=e3]:
+  - navigation [ref=e4]:
+    - generic [ref=e6]:
+      - link "🦞 OpenClaw" [ref=e8] [cursor=pointer]:
+        - /url: /
+        - generic [ref=e9]: 🦞
+        - generic [ref=e10]: OpenClaw
+      - generic [ref=e11]:
+        - generic [ref=e12]:
+          - generic [ref=e15]: "0"
+          - generic [ref=e18]: "0"
+          - generic [ref=e21]: "0"
+        - generic [ref=e23]: Tokens:0
+        - generic [ref=e25]: Chargement...
+        - link "🧪" [ref=e26] [cursor=pointer]:
+          - /url: /tests
+        - button "Rafraîchir" [disabled] [ref=e27]:
+          - img [ref=e28]
+  - main [ref=e30]:
+    - generic [ref=e31]:
+      - generic [ref=e32]:
+        - generic [ref=e33]:
+          - heading "📋 Projets" [level=2] [ref=e34]
+          - paragraph [ref=e35]: 3 projets
+        - generic [ref=e36]:
+          - combobox [ref=e37]:
+            - option "Tous les agents" [selected]
+            - option "amelia-dev"
+            - option "claudio-openclaw"
+            - option "taylor-qa"
+            - option "winston-architecte"
+          - combobox [ref=e38]:
+            - option "Tous les status" [selected]
+            - option "⚠️ Stale"
+            - option "En cours"
+            - option "Planification"
+            - option "En revue"
+            - option "En pause"
+            - option "Terminés"
+          - generic [ref=e39]:
+            - button "▦" [ref=e40] [cursor=pointer]
+            - button "▤" [ref=e41] [cursor=pointer]
+          - button "+ Nouveau" [ref=e42] [cursor=pointer]
+      - generic [ref=e43]:
+        - link "💻 Projet Stale code ⚠️ 48h En cours Un projet sans update depuis 48h Démarrage 30% 👥 1 agent 🔄 Il y a 2j" [ref=e44] [cursor=pointer]:
+          - /url: /project/proj-1
+          - generic [ref=e45]:
+            - generic [ref=e46]:
+              - generic [ref=e47]: 💻
+              - generic [ref=e48]:
+                - heading "Projet Stale" [level=3] [ref=e50]
+                - paragraph [ref=e51]: code
+            - generic [ref=e52]:
+              - generic "Pas de mise à jour depuis 48h" [ref=e53]: ⚠️ 48h
+              - generic [ref=e54]: En cours
+          - paragraph [ref=e55]: Un projet sans update depuis 48h
+          - generic [ref=e57]:
+            - generic [ref=e58]: Démarrage
+            - generic [ref=e59]: 30%
+          - generic [ref=e62]:
+            - generic [ref=e64]: 👥 1 agent
+            - generic [ref=e65]:
+              - button "🔄" [ref=e66]
+              - generic [ref=e67]: Il y a 2j
+        - link "✍️ Projet Actif writing En cours Un projet récemment mis à jour Démarrage 60% 👥 2 agents 📋 1/2 phases 🔄 Il y a 2h" [ref=e68] [cursor=pointer]:
+          - /url: /project/proj-2
+          - generic [ref=e69]:
+            - generic [ref=e70]:
+              - generic [ref=e71]: ✍️
+              - generic [ref=e72]:
+                - heading "Projet Actif" [level=3] [ref=e74]
+                - paragraph [ref=e75]: writing
+            - generic [ref=e77]: En cours
+          - paragraph [ref=e78]: Un projet récemment mis à jour
+          - generic [ref=e80]:
+            - generic [ref=e81]: Démarrage
+            - generic [ref=e82]: 60%
+          - generic [ref=e85]:
+            - generic [ref=e86]:
+              - generic [ref=e87]: 👥 2 agents
+              - generic [ref=e88]: 📋 1/2 phases
+            - generic [ref=e89]:
+              - button "🔄" [ref=e90]
+              - generic [ref=e91]: Il y a 2h
+        - link "💻 Projet Terminé code Terminé Un projet complété Démarrage 100% 👥 1 agent Il y a 4j" [ref=e92] [cursor=pointer]:
+          - /url: /project/proj-3
+          - generic [ref=e93]:
+            - generic [ref=e94]:
+              - generic [ref=e95]: 💻
+              - generic [ref=e96]:
+                - heading "Projet Terminé" [level=3] [ref=e98]
+                - paragraph [ref=e99]: code
+            - generic [ref=e101]: Terminé
+          - paragraph [ref=e102]: Un projet complété
+          - generic [ref=e104]:
+            - generic [ref=e105]: Démarrage
+            - generic [ref=e106]: 100%
+          - generic [ref=e109]:
+            - generic [ref=e111]: 👥 1 agent
+            - generic [ref=e113]: Il y a 4j
+    - heading "Agents" [level=2] [ref=e116]
+```

@@ -1,0 +1,138 @@
+{
+  "scripts": [
+    {
+      "id": "start-project",
+      "name": "workflow-start-project.sh",
+      "description": "Créer un nouveau projet",
+      "usage": "workflow-start-project.sh <nom> <type>",
+      "parameters": [
+        {
+          "name": "nom",
+          "type": "string",
+          "required": true,
+          "description": "Nom du projet"
+        },
+        {
+          "name": "type",
+          "type": "select",
+          "required": true,
+          "options": [
+            "writing/novel-scifi",
+            "writing/novel-fantasy",
+            "writing/short-story",
+            "code/webapp",
+            "code/cli-tool"
+          ],
+          "description": "Type de projet"
+        }
+      ],
+      "naturalLanguage": [
+        "Crée un nouveau projet {nom} de type {type}",
+        "Nouveau projet {nom}",
+        "Initialise {nom}"
+      ]
+    },
+    {
+      "id": "list-projects",
+      "name": "workflow-list-projects.sh",
+      "description": "Lister tous les projets",
+      "usage": "workflow-list-projects.sh",
+      "parameters": [],
+      "naturalLanguage": [
+        "Liste tous les projets",
+        "Montre-moi les projets",
+        "Quels projets actifs ?"
+      ]
+    },
+    {
+      "id": "status",
+      "name": "workflow-status.sh",
+      "description": "Status détaillé d'un projet",
+      "usage": "workflow-status.sh <nom>",
+      "parameters": [
+        {
+          "name": "nom",
+          "type": "string",
+          "required": true,
+          "description": "Nom du projet"
+        }
+      ],
+      "naturalLanguage": [
+        "Status du projet {nom}",
+        "Montre-moi {nom}",
+        "Où en est {nom} ?"
+      ]
+    },
+    {
+      "id": "next-phase",
+      "name": "workflow-next-phase.sh",
+      "description": "Passer à la phase suivante",
+      "usage": "workflow-next-phase.sh <nom> <phase>",
+      "parameters": [
+        {
+          "name": "nom",
+          "type": "string",
+          "required": true,
+          "description": "Nom du projet"
+        },
+        {
+          "name": "phase",
+          "type": "select",
+          "required": true,
+          "options": [
+            "worldbuilding",
+            "characters",
+            "structure",
+            "prose",
+            "continuity",
+            "review"
+          ],
+          "description": "Phase cible"
+        }
+      ],
+      "naturalLanguage": [
+        "Passe {nom} à {phase}",
+        "Phase {phase} pour {nom}",
+        "{nom} vers {phase}"
+      ]
+    },
+    {
+      "id": "metrics",
+      "name": "workflow-metrics.sh",
+      "description": "Générer/mettre à jour métriques",
+      "usage": "workflow-metrics.sh <nom>",
+      "parameters": [
+        {
+          "name": "nom",
+          "type": "string",
+          "required": true,
+          "description": "Nom du projet"
+        }
+      ],
+      "naturalLanguage": [
+        "Métriques de {nom}",
+        "Génère métriques {nom}",
+        "Stats {nom}"
+      ]
+    },
+    {
+      "id": "archive",
+      "name": "workflow-archive-project.sh",
+      "description": "Archiver un projet terminé",
+      "usage": "workflow-archive-project.sh <nom>",
+      "parameters": [
+        {
+          "name": "nom",
+          "type": "string",
+          "required": true,
+          "description": "Nom du projet"
+        }
+      ],
+      "naturalLanguage": [
+        "Archive {nom}",
+        "Archiver projet {nom}",
+        "{nom} est terminé"
+      ]
+    }
+  ]
+}

@@ -1,0 +1,32 @@
+{
+  "name": "openclaw-ui",
+  "version": "2.0.0",
+  "description": "OpenClaw Web Interface - Vue3/Nuxt3",
+  "private": true,
+  "scripts": {
+    "dev": "nuxt dev --port 8080",
+    "build": "nuxt build",
+    "generate": "nuxt generate",
+    "preview": "nuxt preview",
+    "postinstall": "nuxt prepare",
+    "test": "vitest",
+    "test:unit": "vitest run tests/unit tests/integration",
+    "test:e2e": "playwright test",
+    "test:coverage": "vitest run --coverage"
+  },
+  "dependencies": {
+    "chart.js": "^4.5.1",
+    "nuxt": "^3.10.0",
+    "vue": "^3.4.0",
+    "vue-chartjs": "^5.3.3"
+  },
+  "devDependencies": {
+    "@nuxtjs/tailwindcss": "^6.11.0",
+    "@playwright/test": "^1.41.0",
+    "@vitejs/plugin-vue": "^5.0.3",
+    "@vue/test-utils": "^2.4.4",
+    "esbuild": "^0.20.0",
+    "happy-dom": "^13.3.0",
+    "vitest": "^1.2.0"
+  }
+}

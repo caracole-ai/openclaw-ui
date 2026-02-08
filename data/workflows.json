@@ -1,0 +1,103 @@
+[
+  {
+    "id": "wf-dashboard-build",
+    "name": "Construction Dashboard OpenClaw",
+    "description": "Développement complet de l'interface de gestion multi-agents",
+    "steps": [
+      {
+        "id": "step-1",
+        "name": "Architecture & Types",
+        "agentId": "winston-architecte",
+        "action": "design_architecture",
+        "config": {
+          "deliverable": "types TypeScript + structure projet"
+        }
+      },
+      {
+        "id": "step-2",
+        "name": "UI/UX Design",
+        "agentId": "amelia-frontend",
+        "action": "build_interface",
+        "dependencies": ["step-1"],
+        "config": {
+          "framework": "nuxt3",
+          "styling": "tailwindcss"
+        }
+      },
+      {
+        "id": "step-3",
+        "name": "API Backend",
+        "agentId": "marcus-backend",
+        "action": "build_api",
+        "dependencies": ["step-1"],
+        "config": {
+          "endpoints": ["agents", "workflows", "deliberations"]
+        }
+      },
+      {
+        "id": "step-4",
+        "name": "Code Review",
+        "agentId": "sophia-reviewer",
+        "action": "review_code",
+        "dependencies": ["step-2", "step-3"],
+        "config": {
+          "focus": ["security", "performance", "best-practices"]
+        }
+      },
+      {
+        "id": "step-5",
+        "name": "Tests & QA",
+        "agentId": "theo-tester",
+        "action": "write_tests",
+        "dependencies": ["step-4"],
+        "config": {
+          "types": ["unit", "integration", "e2e"],
+          "minCoverage": 80
+        }
+      }
+    ],
+    "status": "active",
+    "createdAt": "2026-02-05T12:00:00Z",
+    "updatedAt": "2026-02-06T01:30:00Z"
+  },
+  {
+    "id": "wf-deliberation-system",
+    "name": "Système de Délibération Collective",
+    "description": "Implémentation du workflow de délibération en 6 étapes",
+    "steps": [
+      {
+        "id": "step-1",
+        "name": "Définition du système",
+        "agentId": "winston-architecte",
+        "action": "define_deliberation_protocol",
+        "config": {
+          "phases": 6,
+          "framework": "orchestration-workflow"
+        }
+      },
+      {
+        "id": "step-2",
+        "name": "Rules participant",
+        "agentId": "sophia-reviewer",
+        "action": "define_participant_rules",
+        "dependencies": ["step-1"],
+        "config": {
+          "skill": "deliberation-participant"
+        }
+      },
+      {
+        "id": "step-3",
+        "name": "Testing workflow",
+        "agentId": "theo-tester",
+        "action": "test_deliberation_flow",
+        "dependencies": ["step-1", "step-2"],
+        "config": {
+          "scenarios": ["consensus", "conflict", "timeout"]
+        }
+      }
+    ],
+    "status": "completed",
+    "createdAt": "2026-02-04T10:00:00Z",
+    "updatedAt": "2026-02-05T16:00:00Z"
+  }
+]

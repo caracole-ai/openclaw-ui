@@ -1,0 +1,102 @@
+# Page snapshot
+
+```yaml
+- generic [ref=e3]:
+  - navigation [ref=e4]:
+    - generic [ref=e6]:
+      - link "🦞 OpenClaw" [ref=e8] [cursor=pointer]:
+        - /url: /
+        - generic [ref=e9]: 🦞
+        - generic [ref=e10]: OpenClaw
+      - generic [ref=e11]:
+        - generic [ref=e12]:
+          - generic [ref=e15]: "0"
+          - generic [ref=e18]: "0"
+          - generic [ref=e21]: "0"
+        - generic [ref=e23]: Tokens:0
+        - generic [ref=e25]: Chargement...
+        - link "🧪" [ref=e26] [cursor=pointer]:
+          - /url: /tests
+        - button "Rafraîchir" [disabled] [ref=e27]:
+          - img [ref=e28]
+  - main [ref=e30]:
+    - generic [ref=e31]:
+      - generic [ref=e32]:
+        - generic [ref=e33]:
+          - heading "📋 Projets" [level=2] [ref=e34]
+          - paragraph [ref=e35]: 3 projets
+        - generic [ref=e36]:
+          - combobox [ref=e37]:
+            - option "Tous les agents" [selected]
+            - option "amelia-dev"
+            - option "claudio-openclaw"
+            - option "taylor-qa"
+            - option "winston-architecte"
+          - combobox [ref=e38]:
+            - option "Tous les status" [selected]
+            - option "⚠️ Stale"
+            - option "En cours"
+            - option "Planification"
+            - option "En revue"
+            - option "En pause"
+            - option "Terminés"
+          - generic [ref=e39]:
+            - button "▦" [ref=e40] [cursor=pointer]
+            - button "▤" [active] [ref=e41] [cursor=pointer]
+          - button "+ Nouveau" [ref=e42] [cursor=pointer]
+      - generic [ref=e43]:
+        - generic [ref=e44]:
+          - generic [ref=e45]:
+            - generic [ref=e46]:
+              - generic [ref=e47]: 📝
+              - generic [ref=e48]: Planification
+            - generic [ref=e49]: "0"
+          - generic [ref=e51]: Aucun projet
+        - generic [ref=e52]:
+          - generic [ref=e53]:
+            - generic [ref=e54]:
+              - generic [ref=e55]: 🔄
+              - generic [ref=e56]: En cours
+            - generic [ref=e57]: "2"
+          - generic [ref=e58]:
+            - generic [ref=e59]:
+              - generic [ref=e60]: ⚠️ Stale (48h)
+              - generic [ref=e61]: Projet Stale
+              - generic [ref=e63]: 💻
+              - generic [ref=e66]:
+                - generic [ref=e67]: 👥 1
+                - generic [ref=e68]: 30%
+            - generic [ref=e69]:
+              - generic [ref=e70]: Projet Actif
+              - generic [ref=e72]: ✍️
+              - generic [ref=e75]:
+                - generic [ref=e76]: 👥 2
+                - generic [ref=e77]: 60%
+        - generic [ref=e78]:
+          - generic [ref=e79]:
+            - generic [ref=e80]:
+              - generic [ref=e81]: 👀
+              - generic [ref=e82]: En revue
+            - generic [ref=e83]: "0"
+          - generic [ref=e85]: Aucun projet
+        - generic [ref=e86]:
+          - generic [ref=e87]:
+            - generic [ref=e88]:
+              - generic [ref=e89]: ⏸️
+              - generic [ref=e90]: En pause
+            - generic [ref=e91]: "0"
+          - generic [ref=e93]: Aucun projet
+        - generic [ref=e94]:
+          - generic [ref=e95]:
+            - generic [ref=e96]:
+              - generic [ref=e97]: ✅
+              - generic [ref=e98]: Terminé
+            - generic [ref=e99]: "1"
+          - generic [ref=e101]:
+            - generic [ref=e102]: Projet Terminé
+            - generic [ref=e104]: 💻
+            - generic [ref=e107]:
+              - generic [ref=e108]: 👥 1
+              - generic [ref=e109]: 100%
+    - heading "Agents" [level=2] [ref=e112]
+```
