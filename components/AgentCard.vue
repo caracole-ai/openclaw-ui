@@ -145,12 +145,23 @@
               <span class="font-medium text-gray-700 truncate flex-1">
                 {{ formatSessionContext(session.context) }}
               </span>
-              <span 
-                class="px-1.5 py-0.5 text-[10px] rounded ml-2"
-                :class="getSessionStatusClass(session)"
-              >
-                {{ session.ageMs < 120000 ? 'active' : 'idle' }}
-              </span>
+              <div class="flex items-center gap-2 ml-2">
+                <span 
+                  class="px-1.5 py-0.5 text-[10px] rounded"
+                  :class="getSessionStatusClass(session)"
+                >
+                  {{ session.ageMs < 120000 ? 'active' : 'idle' }}
+                </span>
+                <!-- Clear button -->
+                <button
+                  @click.stop="clearSession(session)"
+                  class="px-1.5 py-0.5 text-[10px] rounded bg-red-100 text-red-600 hover:bg-red-200 transition-colors"
+                  :disabled="clearingSession === session.sessionId"
+                  title="Vider le contexte de cette session"
+                >
+                  {{ clearingSession === session.sessionId ? '...' : '🗑️' }}
+                </button>
+              </div>
             </div>
             
             <!-- Session stats -->
@@ -195,8 +206,50 @@ const props = defineProps<{
   compact?: boolean
 }>()
 
+const emit = defineEmits<{
+  (e: 'sessionCleared', sessionId: string): void
+}>()
+
 // Accordion state - open by default
 const sessionsExpanded = ref(true)
+
+// Clear session state
+const clearingSession = ref<string | null>(null)
+
+async function clearSession(session: SessionInfo) {
+  const confirmed = confirm(
+    `Vider le contexte de ${props.agent.name} - ${session.context} ?\n\n` +
+    `Cette action est irréversible.\n` +
+    `Tokens actuels : ${formatTokens(session.totalTokens)}`
+  )
+  
+  if (!confirmed) return
+  
+  clearingSession.value = session.sessionId
+  
+  try {
+    const response = await fetch('/api/sessions/send', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        sessionKey: session.key,
+        message: '/clear'
+      })
+    })
+    
+    if (response.ok) {
+      alert(`✅ Contexte vidé pour ${props.agent.name} - ${session.context}`)
+      emit('sessionCleared', session.sessionId)
+    } else {
+      const error = await response.json()
+      alert(`❌ Erreur: ${error.statusMessage || 'Impossible de vider le contexte'}`)
+    }
+  } catch (error: any) {
+    alert(`❌ Erreur: ${error.message}`)
+  } finally {
+    clearingSession.value = null
+  }
+}
 
 // Filter sessions: hide "main" if multiple sessions exist
 const displayedSessions = computed(() => {

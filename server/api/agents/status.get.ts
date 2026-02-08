@@ -144,6 +144,7 @@ export default defineEventHandler(async (): Promise<AgentsStatusResponse> => {
       const sessions: SessionInfo[] = await Promise.all(
         agentSessions.map(async (s) => ({
           sessionId: s.sessionId,
+          key: s.key ?? '',
           context: await parseContext(s.key ?? ''),
           totalTokens: s.totalTokens ?? 0,
           percentUsed: s.percentUsed ?? 0,

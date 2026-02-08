@@ -48,6 +48,7 @@ export interface TokenUsage {
  */
 export interface SessionInfo {
   sessionId: string
+  key: string
   context: string
   totalTokens: number
   percentUsed: number
