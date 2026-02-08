@@ -1,8 +1,44 @@
 <template>
   <div class="space-y-6">
-    <!-- Titre simple -->
-    <div>
+    <!-- Header avec contrôles -->
+    <div class="flex flex-wrap items-center justify-between gap-4">
       <h2 class="text-2xl font-bold text-gray-900">Agents</h2>
+      
+      <div class="flex items-center gap-3">
+        <!-- Groupement -->
+        <select 
+          v-model="groupBy"
+          class="text-sm border rounded-lg px-3 py-1.5 bg-white"
+        >
+          <option value="status">Par status</option>
+          <option value="team">Par équipe</option>
+          <option value="none">Sans groupement</option>
+        </select>
+        
+        <!-- Toggle densité -->
+        <div class="flex border rounded-lg overflow-hidden">
+          <button
+            @click="viewMode = 'compact'"
+            class="px-3 py-1.5 text-sm flex items-center gap-1"
+            :class="viewMode === 'compact' ? 'bg-gray-200 font-medium' : 'bg-white hover:bg-gray-50'"
+            title="Vue compacte"
+          >
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16" />
+            </svg>
+          </button>
+          <button
+            @click="viewMode = 'detailed'"
+            class="px-3 py-1.5 text-sm border-l flex items-center gap-1"
+            :class="viewMode === 'detailed' ? 'bg-gray-200 font-medium' : 'bg-white hover:bg-gray-50'"
+            title="Vue détaillée"
+          >
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 5a1 1 0 011-1h14a1 1 0 011 1v2a1 1 0 01-1 1H5a1 1 0 01-1-1V5zM4 13a1 1 0 011-1h6a1 1 0 011 1v6a1 1 0 01-1 1H5a1 1 0 01-1-1v-6zM16 13a1 1 0 011-1h2a1 1 0 011 1v6a1 1 0 01-1 1h-2a1 1 0 01-1-1v-6z" />
+            </svg>
+          </button>
+        </div>
+      </div>
     </div>
 
     <!-- État d'erreur -->
@@ -42,11 +78,6 @@
           </div>
           <div class="h-6 bg-gray-200 rounded-full w-20"></div>
         </div>
-        <div class="grid grid-cols-2 gap-3 mb-3">
-          <div class="h-16 bg-gray-100 rounded-lg"></div>
-          <div class="h-16 bg-gray-100 rounded-lg"></div>
-        </div>
-        <div class="h-3 bg-gray-100 rounded w-full"></div>
       </div>
     </div>
 
@@ -62,18 +93,59 @@
       <p class="text-gray-500 mt-1">Les agents apparaîtront ici une fois configurés dans OpenClaw.</p>
     </div>
 
-    <!-- Grille d'agents -->
-    <div v-else class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+    <!-- Vue groupée -->
+    <div v-else-if="groupBy !== 'none'" class="space-y-6">
+      <div 
+        v-for="group in groupedAgents" 
+        :key="group.key"
+        class="space-y-3"
+      >
+        <!-- Group header -->
+        <div class="flex items-center gap-2">
+          <span class="text-lg">{{ group.icon }}</span>
+          <h3 class="font-semibold text-gray-700">{{ group.label }}</h3>
+          <span class="text-sm text-gray-500 bg-gray-100 px-2 py-0.5 rounded-full">
+            {{ group.agents.length }}
+          </span>
+        </div>
+        
+        <!-- Agents grid -->
+        <div 
+          class="grid gap-4"
+          :class="viewMode === 'compact' 
+            ? 'grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6' 
+            : 'grid-cols-1 md:grid-cols-2 lg:grid-cols-3'"
+        >
+          <AgentCard 
+            v-for="agent in group.agents" 
+            :key="agent.id"
+            :agent="agent"
+            :compact="viewMode === 'compact'"
+          />
+        </div>
+      </div>
+    </div>
+
+    <!-- Vue sans groupement -->
+    <div 
+      v-else 
+      class="grid gap-4"
+      :class="viewMode === 'compact' 
+        ? 'grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6' 
+        : 'grid-cols-1 md:grid-cols-2 lg:grid-cols-3'"
+    >
       <AgentCard 
         v-for="agent in sortedAgents" 
         :key="agent.id"
-        :agent="agent" 
+        :agent="agent"
+        :compact="viewMode === 'compact'"
       />
     </div>
   </div>
 </template>
 
 <script setup lang="ts">
+import { ref, computed } from 'vue'
 import { useAgentsStatus } from '~/composables/useAgentsStatus'
 import AgentCard from '~/components/AgentCard.vue'
 
@@ -84,4 +156,36 @@ const {
   error,
   refresh,
 } = useAgentsStatus()
+
+const groupBy = ref<'status' | 'team' | 'none'>('status')
+const viewMode = ref<'compact' | 'detailed'>('detailed')
+
+const GROUP_CONFIG = {
+  status: [
+    { key: 'online', label: 'En ligne', icon: '🟢' },
+    { key: 'idle', label: 'Inactif', icon: '🟡' },
+    { key: 'offline', label: 'Hors ligne', icon: '⚫' }
+  ],
+  team: [
+    { key: 'code', label: 'Code', icon: '💻' },
+    { key: 'writing', label: 'Écriture', icon: '✍️' },
+    { key: 'free', label: 'Libre', icon: '🌟' },
+    { key: 'unknown', label: 'Autre', icon: '❓' }
+  ]
+}
+
+const groupedAgents = computed(() => {
+  const config = GROUP_CONFIG[groupBy.value as keyof typeof GROUP_CONFIG]
+  if (!config) return []
+  
+  return config.map(group => ({
+    ...group,
+    agents: sortedAgents.value.filter(agent => {
+      if (groupBy.value === 'status') {
+        return agent.status === group.key
+      }
+      return (agent.team || 'unknown') === group.key
+    })
+  })).filter(group => group.agents.length > 0)
+})
 </script>

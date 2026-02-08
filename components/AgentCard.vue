@@ -1,5 +1,27 @@
 <template>
+  <!-- Vue compacte -->
+  <NuxtLink 
+    v-if="compact"
+    :to="`/agent/${agent.id}`"
+    class="bg-white rounded-lg shadow-sm border p-3 hover:shadow-md transition-shadow flex items-center gap-2"
+    :class="borderClass"
+  >
+    <div 
+      class="w-8 h-8 rounded-full flex items-center justify-center text-sm font-bold flex-shrink-0"
+      :class="avatarClass"
+    >
+      {{ initial }}
+    </div>
+    <div class="min-w-0 flex-1">
+      <div class="font-medium text-gray-900 truncate text-sm">{{ agent.name }}</div>
+      <div class="text-xs text-gray-500">{{ formatTokens(agent.totalTokens) }}</div>
+    </div>
+    <AgentStatusBadge :status="agent.status" size="sm" />
+  </NuxtLink>
+
+  <!-- Vue détaillée -->
   <div 
+    v-else
     class="bg-white rounded-lg shadow-sm border p-4 hover:shadow-md transition-shadow"
     :class="borderClass"
   >
@@ -170,6 +192,7 @@ import type { AgentStatus, AgentTeam, SessionInfo } from '~/types/agents'
 
 const props = defineProps<{
   agent: AgentStatus
+  compact?: boolean
 }>()
 
 // Accordion state - open by default

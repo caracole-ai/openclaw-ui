@@ -1,10 +1,10 @@
 <template>
   <span 
-    class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium"
-    :class="badgeClasses"
+    class="inline-flex items-center rounded-full font-medium"
+    :class="[badgeClasses, sizeClasses]"
   >
-    <span class="w-2 h-2 rounded-full" :class="dotClasses"></span>
-    {{ label }}
+    <span class="rounded-full" :class="[dotClasses, dotSizeClasses]"></span>
+    <span v-if="size !== 'sm'">{{ label }}</span>
   </span>
 </template>
 
@@ -12,9 +12,26 @@
 import { computed } from 'vue'
 import type { AgentStatusType } from '~/types/agents'
 
-const props = defineProps<{
+const props = withDefaults(defineProps<{
   status: AgentStatusType
-}>()
+  size?: 'sm' | 'md'
+}>(), {
+  size: 'md'
+})
+
+const sizeClasses = computed(() => {
+  if (props.size === 'sm') {
+    return 'px-1.5 py-0.5 text-[10px] gap-0'
+  }
+  return 'px-2.5 py-1 text-xs gap-1.5'
+})
+
+const dotSizeClasses = computed(() => {
+  if (props.size === 'sm') {
+    return 'w-2 h-2'
+  }
+  return 'w-2 h-2'
+})
 
 const badgeClasses = computed(() => {
   switch (props.status) {
