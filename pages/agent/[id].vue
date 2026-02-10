@@ -35,8 +35,19 @@
               {{ agent.name.charAt(0).toUpperCase() }}
             </div>
             <div>
-              <h1 class="text-2xl font-bold text-gray-900">{{ agent.name }}</h1>
+              <div class="flex items-center gap-3">
+                <h1 class="text-2xl font-bold text-gray-900">{{ agent.name }}</h1>
+                <!-- Badge équipe -->
+                <span 
+                  class="px-2 py-0.5 text-xs font-medium rounded-full"
+                  :class="agentTeam.color"
+                >
+                  {{ agentTeam.icon }} {{ agentTeam.label }}
+                </span>
+              </div>
               <p class="text-gray-500 font-mono text-sm">{{ agent.id }}</p>
+              <!-- Dernière activité -->
+              <p v-if="lastActivityText" class="text-xs text-gray-400 mt-1">{{ lastActivityText }}</p>
             </div>
           </div>
           <AgentStatusBadge :status="agent.status" />
@@ -164,7 +175,7 @@
                 class="border rounded-lg p-4"
               >
                 <div class="flex items-center justify-between mb-2">
-                  <span class="font-medium">{{ session.context }}</span>
+                  <span class="font-medium">{{ getChannelDisplayName(session.context) }}</span>
                   <span class="text-sm text-gray-500">{{ formatTokens(session.totalTokens) }} tokens</span>
                 </div>
                 <div class="flex items-center gap-4 text-sm text-gray-500">
@@ -299,4 +310,35 @@ function getAgentRole(project: any): string {
   // Fallback
   return 'assigné'
 }
+
+// Get channel display name from context ID
+function getChannelDisplayName(contextId: string): string {
+  const channel = agent.value?.channels?.find((c: any) => c.name === contextId)
+  return channel?.displayName || channel?.name || contextId
+}
+
+// Determine agent team from workspace path
+const agentTeam = computed(() => {
+  const workspace = agent.value?.workspace || ''
+  if (workspace.includes('workspace-code-')) return { key: 'code', label: 'Code', icon: '💻', color: 'bg-blue-100 text-blue-700' }
+  if (workspace.includes('workspace-writing-')) return { key: 'writing', label: 'Écriture', icon: '✍️', color: 'bg-purple-100 text-purple-700' }
+  if (workspace.includes('workspace-free-')) return { key: 'free', label: 'Libre', icon: '🌟', color: 'bg-yellow-100 text-yellow-700' }
+  return { key: 'unknown', label: 'Autre', icon: '❓', color: 'bg-gray-100 text-gray-700' }
+})
+
+// Format last activity
+const lastActivityText = computed(() => {
+  if (!agent.value?.lastActivity) return null
+  const date = new Date(agent.value.lastActivity)
+  const now = new Date()
+  const diffMs = now.getTime() - date.getTime()
+  const diffSeconds = Math.floor(diffMs / 1000)
+  const diffMinutes = Math.floor(diffSeconds / 60)
+  const diffHours = Math.floor(diffMinutes / 60)
+  
+  if (diffSeconds < 60) return `Actif il y a ${diffSeconds}s`
+  if (diffMinutes < 60) return `Actif il y a ${diffMinutes}m`
+  if (diffHours < 24) return `Actif il y a ${diffHours}h`
+  return `Actif le ${date.toLocaleDateString('fr-FR')}`
+})
 </script>
