@@ -1,20 +1,17 @@
 <template>
-  <main class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-    <!-- Breadcrumb -->
-    <nav class="mb-6">
-      <NuxtLink to="/" class="text-blue-600 hover:text-blue-800">
-        ← Retour au dashboard
-      </NuxtLink>
-    </nav>
+  <div>
+    <Breadcrumb />
+    <main class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
 
     <!-- Stats Overview -->
     <div class="mb-8">
       <StatsOverview :agents="agents" />
     </div>
 
-    <!-- Agents Dashboard -->
-    <AgentsDashboard />
-  </main>
+      <!-- Agents Dashboard -->
+      <AgentsDashboard />
+    </main>
+  </div>
 </template>
 
 <script setup lang="ts">

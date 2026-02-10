@@ -1,15 +1,7 @@
 <template>
   <div>
     <!-- Breadcrumb -->
-    <div class="bg-white border-b">
-      <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-3">
-        <div class="flex items-center gap-2 text-sm">
-          <NuxtLink to="/" class="text-gray-500 hover:text-gray-700">Dashboard</NuxtLink>
-          <span class="text-gray-300">/</span>
-          <span class="text-gray-900 font-medium">{{ agent?.name || route.params.id }}</span>
-        </div>
-      </div>
-    </div>
+    <Breadcrumb />
 
     <!-- Loading -->
     <div v-if="pending" class="max-w-7xl mx-auto px-4 py-8">
@@ -90,6 +82,60 @@
         </div>
 
         <div class="p-6">
+          <!-- Tab: Projets -->
+          <div v-if="activeTab === 'projects'">
+            <div v-if="agentProjects.length" class="space-y-3">
+              <NuxtLink 
+                v-for="project in agentProjects" 
+                :key="project.id"
+                :to="`/project/${project.id}`"
+                class="block border rounded-lg p-4 hover:bg-blue-50 hover:border-blue-200 transition-all group"
+              >
+                <div class="flex items-center justify-between">
+                  <div class="flex items-center gap-3">
+                    <span class="text-2xl">
+                      {{ project.type === 'writing' ? '✍️' : project.type === 'code' ? '💻' : '📁' }}
+                    </span>
+                    <div>
+                      <div class="font-semibold text-gray-900 group-hover:text-blue-600 transition-colors">
+                        {{ project.name }}
+                      </div>
+                      <div class="text-sm text-gray-500">
+                        {{ getAgentRole(project) }}
+                      </div>
+                    </div>
+                  </div>
+                  <div class="flex items-center gap-3">
+                    <span 
+                      class="px-2 py-1 text-xs font-medium rounded-full"
+                      :class="{
+                        'bg-gray-100 text-gray-700': project.status === 'planning',
+                        'bg-blue-100 text-blue-700': project.status === 'in-progress',
+                        'bg-purple-100 text-purple-700': project.status === 'review',
+                        'bg-green-100 text-green-700': project.status === 'completed',
+                        'bg-yellow-100 text-yellow-700': project.status === 'paused'
+                      }"
+                    >
+                      {{ project.status }}
+                    </span>
+                    <span class="text-gray-300 group-hover:text-blue-500 group-hover:translate-x-1 transition-all">→</span>
+                  </div>
+                </div>
+                <!-- Progress bar -->
+                <div class="mt-3 h-1.5 bg-gray-100 rounded-full overflow-hidden">
+                  <div 
+                    class="h-full bg-blue-500 rounded-full transition-all"
+                    :style="{ width: `${project.progress || 0}%` }"
+                  ></div>
+                </div>
+              </NuxtLink>
+            </div>
+            <div v-else class="text-center py-8 text-gray-500">
+              <span class="text-4xl mb-2 block">📭</span>
+              Aucun projet assigné à cet agent
+            </div>
+          </div>
+
           <!-- Tab: Fichiers -->
           <div v-if="activeTab === 'files'">
             <div v-if="agent.files && Object.keys(agent.files).length" class="space-y-4">
@@ -164,8 +210,9 @@ import { ref, computed } from 'vue'
 const route = useRoute()
 const agentId = computed(() => route.params.id as string)
 
-const activeTab = ref('files')
+const activeTab = ref('projects')
 const tabs = [
+  { id: 'projects', label: 'Projets' },
   { id: 'files', label: 'Fichiers' },
   { id: 'sessions', label: 'Sessions' },
   { id: 'channels', label: 'Channels' },
@@ -174,9 +221,31 @@ const tabs = [
 // Fetch agent details
 const { data: agent, pending, error } = await useFetch(`/api/agents/${agentId.value}`)
 
+// Fetch projects where agent is involved
+const { data: projectsData } = await useFetch('/api/projects')
+const agentProjects = computed(() => {
+  if (!projectsData.value?.projects) return []
+  return projectsData.value.projects.filter((p: any) => {
+    // Check if agent is in team
+    const inTeam = p.team?.some((t: any) => t.agent === agentId.value)
+    // Check if agent is in assignees
+    const inAssignees = p.assignees?.includes(agentId.value)
+    // Check if agent is owner
+    const isOwner = p.owner === agentId.value
+    return inTeam || inAssignees || isOwner
+  })
+})
+
 useHead({
   title: computed(() => `${agent.value?.name || agentId.value} - OpenClaw`)
 })
+
+// Set agent name in route meta for breadcrumb
+watch(() => agent.value, (newAgent) => {
+  if (newAgent?.name) {
+    route.meta.agentName = newAgent.name
+  }
+}, { immediate: true })
 
 const avatarClass = computed(() => {
   switch (agent.value?.status) {
@@ -217,5 +286,17 @@ function formatAge(ageMs: number): string {
   if (seconds < 60) return `${seconds}s`
   if (minutes < 60) return `${minutes}m`
   return `${hours}h`
+}
+
+function getAgentRole(project: any): string {
+  // Check team first
+  const teamMember = project.team?.find((t: any) => t.agent === agentId.value)
+  if (teamMember?.role) return teamMember.role
+  
+  // Check if owner
+  if (project.owner === agentId.value) return 'owner'
+  
+  // Fallback
+  return 'assigné'
 }
 </script>

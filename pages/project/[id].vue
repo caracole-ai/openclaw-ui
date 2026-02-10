@@ -1,223 +1,441 @@
 <template>
-  <main class="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-    <!-- Back link -->
-    <NuxtLink to="/" class="inline-flex items-center text-sm text-gray-500 hover:text-gray-700 mb-6">
-      ← Retour au dashboard
-    </NuxtLink>
+  <div>
+    <Breadcrumb />
+    <main class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
 
     <!-- Loading -->
-    <div v-if="loading" class="animate-pulse">
-      <div class="h-8 bg-gray-200 rounded w-1/2 mb-4"></div>
-      <div class="h-4 bg-gray-200 rounded w-3/4 mb-8"></div>
-      <div class="h-32 bg-gray-200 rounded"></div>
+    <div v-if="loading" class="animate-pulse space-y-6">
+      <div class="h-20 bg-gray-200 rounded-2xl"></div>
+      <div class="flex gap-6">
+        <div class="flex-1 h-96 bg-gray-200 rounded-2xl"></div>
+        <div class="w-80 space-y-4">
+          <div class="h-32 bg-gray-200 rounded-2xl"></div>
+          <div class="h-32 bg-gray-200 rounded-2xl"></div>
+          <div class="h-48 bg-gray-200 rounded-2xl"></div>
+        </div>
+      </div>
     </div>
 
     <!-- Error -->
     <div v-else-if="error" class="text-center py-12">
-      <div class="text-4xl mb-4">😕</div>
-      <p class="text-gray-500">{{ error }}</p>
+      <div class="text-6xl mb-4">😕</div>
+      <p class="text-gray-500 text-lg">{{ error }}</p>
     </div>
 
     <!-- Project content -->
-    <div v-else-if="project">
-      <!-- Header -->
-      <div class="bg-white rounded-xl shadow-sm border p-6 mb-6">
-        <div class="flex items-start justify-between mb-4">
+    <div v-else-if="project" class="space-y-6">
+      
+      <!-- ═══════════════════════════════════════════════════════════════ -->
+      <!-- HEADER -->
+      <!-- ═══════════════════════════════════════════════════════════════ -->
+      <div class="bg-gradient-to-br from-white to-gray-50 rounded-2xl shadow-sm border p-5">
+        <div class="flex items-center justify-between">
           <div class="flex items-center gap-4">
             <div 
-              class="w-14 h-14 rounded-xl flex items-center justify-center text-2xl"
+              class="w-14 h-14 rounded-2xl flex items-center justify-center text-2xl shadow-sm"
               :class="typeIconClass"
             >
               {{ typeIcon }}
             </div>
             <div>
-              <h1 class="text-2xl font-bold text-gray-900">{{ project.name }}</h1>
-              <div class="flex items-center gap-2 mt-1">
+              <h1 class="text-xl font-bold text-gray-900">{{ project.name }}</h1>
+              <div class="flex items-center gap-2 mt-1 flex-wrap">
                 <span 
-                  class="px-2 py-1 text-xs font-medium rounded-full"
+                  class="px-2.5 py-0.5 text-sm font-medium rounded-full"
                   :class="statusClass"
                 >
                   {{ statusLabel }}
                 </span>
-                <span class="text-sm text-gray-500">{{ project.type }}</span>
+                <span class="text-sm text-gray-400">{{ project.type }}</span>
                 <span 
                   v-if="project.priority === 'urgent'"
-                  class="px-2 py-1 text-xs font-medium rounded-full bg-red-100 text-red-700"
+                  class="px-2 py-0.5 text-xs font-medium rounded-full bg-red-100 text-red-700 animate-pulse"
                 >
-                  Urgent
+                  🔥 Urgent
                 </span>
                 <span 
                   v-if="project.isStale"
-                  class="px-2 py-1 text-xs font-semibold rounded-full bg-orange-100 text-orange-700"
-                  :title="`Aucune mise à jour depuis ${project.staleHours}h`"
+                  class="px-2 py-0.5 text-xs font-semibold rounded-full bg-orange-100 text-orange-700"
                 >
-                  ⚠️ Stale ({{ project.staleHours }}h)
+                  ⚠️ Stale
                 </span>
               </div>
             </div>
           </div>
           
-          <!-- Actions -->
-          <div class="flex gap-2">
+          <div class="flex items-center gap-3">
+            <div class="text-right text-xs text-gray-400 hidden sm:block">
+              <div>Créé {{ formatDate(project.createdAt) }}</div>
+              <div>Màj {{ formatDate(project.updatedAt) }}</div>
+            </div>
             <select 
               v-model="project.status"
               @change="updateStatus"
-              class="text-sm border rounded-lg px-3 py-2"
+              class="text-sm border-2 border-gray-200 rounded-xl px-3 py-2 bg-white hover:border-blue-300 transition-colors focus:outline-none focus:border-blue-500"
             >
-              <option value="planning">Planification</option>
-              <option value="in-progress">En cours</option>
-              <option value="review">En revue</option>
-              <option value="paused">En pause</option>
-              <option value="completed">Terminé</option>
+              <option value="planning">📋 Planification</option>
+              <option value="in-progress">🔄 En cours</option>
+              <option value="review">👀 En revue</option>
+              <option value="paused">⏸️ En pause</option>
+              <option value="completed">✅ Terminé</option>
             </select>
           </div>
         </div>
-
-        <p v-if="project.description" class="text-gray-600 mb-4">
-          {{ project.description }}
-        </p>
-
-        <!-- Progress -->
-        <div class="mb-4">
-          <div class="flex justify-between text-sm mb-2">
-            <span class="font-medium">Progression</span>
-            <span>{{ project.progress }}%</span>
-          </div>
-          <div class="h-3 bg-gray-200 rounded-full overflow-hidden">
-            <div 
-              class="h-full bg-blue-500 rounded-full transition-all"
-              :style="{ width: `${project.progress}%` }"
-            ></div>
-          </div>
-          <input 
-            type="range" 
-            v-model.number="project.progress"
-            @change="updateProgress"
-            min="0" 
-            max="100"
-            class="w-full mt-2"
-          >
-        </div>
-
-        <!-- Meta -->
-        <div class="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
-          <div>
-            <span class="text-gray-500">Créé le</span>
-            <div class="font-medium">{{ formatDate(project.createdAt) }}</div>
-          </div>
-          <div>
-            <span class="text-gray-500">Mis à jour</span>
-            <div class="font-medium">{{ formatDate(project.updatedAt) }}</div>
-          </div>
-          <div>
-            <span class="text-gray-500">Team</span>
-            <div class="font-medium">{{ project.team?.length ?? 0 }} agent(s)</div>
-          </div>
-          <div>
-            <span class="text-gray-500">Phases</span>
-            <div class="font-medium">{{ completedPhases }}/{{ project.phases?.length ?? 0 }}</div>
-          </div>
-        </div>
       </div>
 
-      <!-- Phases -->
-      <div v-if="project.phases?.length > 0" class="bg-white rounded-xl shadow-sm border p-6 mb-6">
-        <h2 class="font-bold text-lg mb-4">📋 Phases</h2>
-        <div class="space-y-3">
-          <div 
-            v-for="(phase, index) in project.phases" 
-            :key="index"
-            class="flex items-center gap-3 p-3 rounded-lg"
-            :class="{
-              'bg-green-50': phase.status === 'completed',
-              'bg-blue-50': phase.status === 'in-progress',
-              'bg-gray-50': phase.status === 'pending'
-            }"
-          >
-            <span class="text-lg">
-              {{ phase.status === 'completed' ? '✅' : phase.status === 'in-progress' ? '🔄' : '⏳' }}
-            </span>
-            <div class="flex-1">
-              <div class="font-medium">{{ phase.name }}</div>
-              <div v-if="phase.assignedTo?.length" class="text-xs text-gray-500">
-                {{ phase.assignedTo.join(', ') }}
-              </div>
+      <!-- ═══════════════════════════════════════════════════════════════ -->
+      <!-- MAIN LAYOUT: Documents + Sidebar -->
+      <!-- ═══════════════════════════════════════════════════════════════ -->
+      <div class="flex flex-col lg:flex-row gap-6">
+        
+        <!-- ─────────────────────────────────────────────────────────────── -->
+        <!-- MAIN: DOCUMENTS -->
+        <!-- ─────────────────────────────────────────────────────────────── -->
+        <div class="flex-1 min-w-0">
+          <div class="bg-white rounded-2xl shadow-sm border h-full">
+            <!-- Header -->
+            <div class="p-5 border-b">
+              <h2 class="font-bold text-lg flex items-center gap-2">
+                <span class="text-2xl">📄</span>
+                Documentation
+                <span v-if="docs.length" class="text-sm font-normal text-gray-400 ml-1">
+                  {{ docs.length }} fichier{{ docs.length > 1 ? 's' : '' }}
+                </span>
+              </h2>
             </div>
-            <button 
-              v-if="phase.status !== 'completed'"
-              @click="completePhase(phase.name)"
-              class="text-xs px-2 py-1 bg-green-100 text-green-700 rounded hover:bg-green-200"
-            >
-              Terminer
-            </button>
-          </div>
-        </div>
-      </div>
 
-      <!-- Updates log -->
-      <div class="bg-white rounded-xl shadow-sm border p-6">
-        <div class="flex items-center justify-between mb-4">
-          <h2 class="font-bold text-lg">📝 Journal des mises à jour</h2>
-          <button 
-            @click="showAddUpdate = !showAddUpdate"
-            class="text-sm text-blue-600 hover:text-blue-700"
-          >
-            + Ajouter une note
-          </button>
-        </div>
+            <!-- Documents content -->
+            <div class="p-5">
+              <div v-if="docs.length > 0" class="space-y-6">
+                <div v-for="group in groupedDocs" :key="group.folder" class="space-y-3">
+                  <!-- Folder header -->
+                  <div class="flex items-center gap-2 text-sm font-medium text-gray-500">
+                    <span>{{ group.folder === '/' ? '📁' : '📂' }}</span>
+                    <span>{{ group.folder === '/' ? 'Racine' : group.folder }}</span>
+                    <span class="w-full h-px bg-gray-200 flex-1"></span>
+                    <span class="text-gray-300">{{ group.docs.length }}</span>
+                  </div>
+                  
+                  <!-- Docs grid -->
+                  <div class="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-3">
+                    <button
+                      v-for="doc in group.docs"
+                      :key="doc.path"
+                      @click="openDoc(doc)"
+                      class="flex items-start gap-3 p-4 rounded-xl bg-gray-50 hover:bg-blue-50 hover:border-blue-200 border-2 border-transparent transition-all text-left group"
+                    >
+                      <span class="text-2xl group-hover:scale-110 transition-transform mt-0.5">📝</span>
+                      <div class="min-w-0 flex-1">
+                        <div class="font-medium text-gray-900 truncate">{{ doc.name }}</div>
+                        <div class="text-xs text-gray-400 mt-1">
+                          {{ formatFileSize(doc.size) }} · {{ formatDateShort(doc.modifiedAt) }}
+                        </div>
+                      </div>
+                      <span class="text-gray-300 group-hover:text-blue-500 group-hover:translate-x-1 transition-all text-lg">→</span>
+                    </button>
+                  </div>
+                </div>
+              </div>
 
-        <!-- Add update form -->
-        <div v-if="showAddUpdate" class="mb-4 p-4 bg-gray-50 rounded-lg">
-          <textarea 
-            v-model="newUpdate"
-            rows="2"
-            class="w-full border rounded-lg px-3 py-2 mb-2"
-            placeholder="Note de mise à jour..."
-          ></textarea>
-          <div class="flex justify-end gap-2">
-            <button @click="showAddUpdate = false" class="text-sm px-3 py-1 border rounded">
-              Annuler
-            </button>
-            <button 
-              @click="addUpdate"
-              class="text-sm px-3 py-1 bg-blue-600 text-white rounded hover:bg-blue-700"
-            >
-              Ajouter
-            </button>
-          </div>
-        </div>
-
-        <!-- Updates list -->
-        <div class="space-y-3 max-h-96 overflow-y-auto">
-          <div 
-            v-for="(update, index) in (project.updates ?? []).slice().reverse()" 
-            :key="index"
-            class="flex gap-3 p-3 bg-gray-50 rounded-lg"
-          >
-            <div class="text-sm">
-              <div class="flex items-center gap-2 mb-1">
-                <span class="font-medium text-gray-900">{{ update.agentId }}</span>
-                <span class="text-gray-400">·</span>
-                <span class="text-gray-500">{{ formatDate(update.timestamp) }}</span>
-                <span 
-                  v-if="update.status"
-                  class="px-1.5 py-0.5 text-xs rounded bg-blue-100 text-blue-700"
-                >
-                  {{ update.status }}
+              <!-- Empty state -->
+              <div v-else class="flex flex-col items-center justify-center py-16 text-gray-400">
+                <span class="text-6xl mb-4">📭</span>
+                <span class="text-lg font-medium mb-2">Aucun document</span>
+                <span class="text-sm text-center max-w-md">
+                  Les agents peuvent sauvegarder leurs livrables avec la commande<br>
+                  <code class="bg-gray-100 px-2 py-1 rounded mt-2 inline-block font-mono text-xs">
+                    project-update.sh {{ project.id }} doc "fichier.md"
+                  </code>
                 </span>
               </div>
-              <p class="text-gray-600">{{ update.message }}</p>
             </div>
           </div>
+        </div>
+
+        <!-- ─────────────────────────────────────────────────────────────── -->
+        <!-- SIDEBAR -->
+        <!-- ─────────────────────────────────────────────────────────────── -->
+        <div class="w-full lg:w-80 flex-shrink-0 space-y-4">
+
+          <!-- Team card -->
+          <div v-if="project.team?.length || project.assignees?.length" class="bg-white rounded-2xl shadow-sm border p-5">
+            <h3 class="font-semibold text-gray-700 flex items-center gap-2 mb-3">
+              <span>👥</span> Équipe
+              <span class="text-xs font-normal text-gray-400">
+                {{ project.team?.length || project.assignees?.length }}
+              </span>
+            </h3>
+
+            <div class="space-y-2">
+              <!-- Team with roles -->
+              <template v-if="project.team?.length">
+                <div 
+                  v-for="member in project.team" 
+                  :key="member.agent"
+                  class="flex items-center gap-3 p-2 rounded-lg bg-gray-50"
+                >
+                  <div class="w-8 h-8 rounded-full bg-gradient-to-br from-blue-400 to-purple-500 flex items-center justify-center text-white text-xs font-bold">
+                    {{ member.agent.charAt(0).toUpperCase() }}
+                  </div>
+                  <div class="flex-1 min-w-0">
+                    <div class="font-medium text-sm text-gray-900 truncate">{{ member.agent }}</div>
+                    <div class="text-xs text-gray-500 truncate">{{ member.role }}</div>
+                  </div>
+                </div>
+              </template>
+              <!-- Fallback to assignees -->
+              <template v-else-if="project.assignees?.length">
+                <div 
+                  v-for="agent in project.assignees" 
+                  :key="agent"
+                  class="flex items-center gap-3 p-2 rounded-lg bg-gray-50"
+                >
+                  <div class="w-8 h-8 rounded-full bg-gradient-to-br from-gray-400 to-gray-500 flex items-center justify-center text-white text-xs font-bold">
+                    {{ agent.charAt(0).toUpperCase() }}
+                  </div>
+                  <div class="font-medium text-sm text-gray-900 truncate">{{ agent }}</div>
+                </div>
+              </template>
+            </div>
+          </div>
+          
+          <!-- Progress card -->
+          <div class="bg-white rounded-2xl shadow-sm border p-5">
+            <div class="flex items-center justify-between mb-3">
+              <h3 class="font-semibold text-gray-700 flex items-center gap-2">
+                <span>📊</span> Progress
+              </h3>
+              <span 
+                class="text-2xl font-bold"
+                :class="{
+                  'text-gray-300': project.progress === 0,
+                  'text-blue-500': project.progress > 0 && project.progress < 50,
+                  'text-amber-500': project.progress >= 50 && project.progress < 100,
+                  'text-green-500': project.progress === 100
+                }"
+              >
+                {{ project.progress }}%
+              </span>
+            </div>
+
+            <!-- Progress bar -->
+            <div class="h-3 bg-gray-100 rounded-full overflow-hidden mb-3">
+              <div 
+                class="h-full rounded-full transition-all duration-500"
+                :class="{
+                  'bg-gray-300': project.progress === 0,
+                  'bg-blue-500': project.progress > 0 && project.progress < 50,
+                  'bg-amber-500': project.progress >= 50 && project.progress < 100,
+                  'bg-green-500': project.progress === 100
+                }"
+                :style="{ width: `${project.progress}%` }"
+              ></div>
+            </div>
+
+            <input 
+              type="range" 
+              v-model.number="project.progress"
+              @change="updateProgress"
+              min="0" 
+              max="100"
+              class="w-full h-1.5 bg-gray-200 rounded-lg appearance-none cursor-pointer accent-blue-500"
+            >
+          </div>
+
+          <!-- Phases card -->
+          <div class="bg-white rounded-2xl shadow-sm border p-5">
+            <h3 class="font-semibold text-gray-700 flex items-center gap-2 mb-3">
+              <span>📋</span> Phases
+              <span class="text-xs font-normal text-gray-400">
+                {{ completedPhases }}/{{ project.phases?.length ?? 0 }}
+              </span>
+            </h3>
+
+            <div v-if="project.phases?.length > 0" class="space-y-2 max-h-40 overflow-y-auto pr-1">
+              <div 
+                v-for="(phase, index) in project.phases" 
+                :key="index"
+                class="flex items-center gap-2 p-2 rounded-lg text-sm"
+                :class="{
+                  'bg-green-50': phase.status === 'completed',
+                  'bg-blue-50': phase.status === 'in-progress',
+                  'bg-gray-50': phase.status === 'pending'
+                }"
+              >
+                <span class="text-base">
+                  {{ phase.status === 'completed' ? '✅' : phase.status === 'in-progress' ? '🔄' : '⏳' }}
+                </span>
+                <span class="flex-1 truncate">{{ phase.name }}</span>
+                <button 
+                  v-if="phase.status !== 'completed'"
+                  @click="completePhase(phase.name)"
+                  class="text-xs px-1.5 py-0.5 bg-green-100 text-green-700 rounded hover:bg-green-200"
+                >
+                  ✓
+                </button>
+              </div>
+            </div>
+
+            <div v-else class="text-center py-4 text-gray-400 text-sm">
+              Aucune phase
+            </div>
+          </div>
+
+          <!-- History card -->
+          <div class="bg-white rounded-2xl shadow-sm border p-5">
+            <div class="flex items-center justify-between mb-3">
+              <h3 class="font-semibold text-gray-700 flex items-center gap-2">
+                <span>📝</span> Historique
+              </h3>
+              <button 
+                @click="showAddUpdate = !showAddUpdate"
+                class="text-xs px-2 py-1 bg-blue-50 text-blue-600 rounded-lg hover:bg-blue-100 transition-colors"
+              >
+                +
+              </button>
+            </div>
+
+            <!-- Add update form -->
+            <div v-if="showAddUpdate" class="mb-3 p-3 bg-blue-50 rounded-xl">
+              <textarea 
+                v-model="newUpdate"
+                rows="2"
+                class="w-full border rounded-lg px-3 py-2 text-sm mb-2 focus:outline-none focus:border-blue-400"
+                placeholder="Note..."
+              ></textarea>
+              <div class="flex justify-end gap-2">
+                <button 
+                  @click="showAddUpdate = false" 
+                  class="text-xs px-2 py-1 border rounded hover:bg-gray-50"
+                >
+                  ✕
+                </button>
+                <button 
+                  @click="addUpdate"
+                  class="text-xs px-2 py-1 bg-blue-600 text-white rounded hover:bg-blue-700"
+                >
+                  OK
+                </button>
+              </div>
+            </div>
+
+            <!-- Updates list -->
+            <div class="space-y-2 max-h-64 overflow-y-auto pr-1">
+              <div 
+                v-for="(update, index) in (project.updates ?? []).slice().reverse().slice(0, 10)" 
+                :key="index"
+                class="p-2 rounded-lg bg-gray-50 text-sm"
+              >
+                <div class="flex items-center gap-1 text-xs text-gray-400 mb-1">
+                  <span>{{ getUpdateIcon(update.type) }}</span>
+                  <span class="font-medium text-gray-600">{{ update.agentId }}</span>
+                  <span>·</span>
+                  <span>{{ formatDateShort(update.timestamp) }}</span>
+                </div>
+                <p class="text-gray-700 text-xs line-clamp-2">{{ update.message }}</p>
+              </div>
+
+              <div v-if="!project.updates?.length" class="text-center py-4 text-gray-400 text-sm">
+                Aucune mise à jour
+              </div>
+            </div>
+          </div>
+
         </div>
       </div>
     </div>
-  </main>
+
+    <!-- ═══════════════════════════════════════════════════════════════ -->
+    <!-- DOC VIEWER MODAL -->
+    <!-- ═══════════════════════════════════════════════════════════════ -->
+    <Teleport to="body">
+      <Transition
+        enter-active-class="transition-all duration-200"
+        enter-from-class="opacity-0"
+        enter-to-class="opacity-100"
+        leave-active-class="transition-all duration-200"
+        leave-from-class="opacity-100"
+        leave-to-class="opacity-0"
+      >
+        <div 
+          v-if="showDocModal"
+          class="fixed inset-0 z-50 flex items-center justify-center p-4"
+        >
+          <!-- Backdrop -->
+          <div 
+            class="absolute inset-0 bg-black/60 backdrop-blur-sm"
+            @click="closeDoc"
+          ></div>
+          
+          <!-- Modal -->
+          <Transition
+            enter-active-class="transition-all duration-200 delay-75"
+            enter-from-class="opacity-0 scale-95"
+            enter-to-class="opacity-100 scale-100"
+            leave-active-class="transition-all duration-150"
+            leave-from-class="opacity-100 scale-100"
+            leave-to-class="opacity-0 scale-95"
+          >
+            <div 
+              v-if="showDocModal"
+              class="relative bg-white rounded-2xl shadow-2xl w-full max-w-4xl max-h-[85vh] flex flex-col overflow-hidden"
+            >
+              <!-- Header -->
+              <div class="flex items-center justify-between p-5 border-b bg-gradient-to-r from-gray-50 to-white">
+                <div class="flex items-center gap-3">
+                  <span class="text-2xl">📝</span>
+                  <div>
+                    <h3 class="font-bold text-lg">{{ currentDoc?.name }}</h3>
+                    <p class="text-xs text-gray-500">{{ currentDoc?.folder !== '/' ? currentDoc?.folder + '/' : '' }}{{ currentDoc?.name }}</p>
+                  </div>
+                </div>
+                <button 
+                  @click="closeDoc"
+                  class="w-10 h-10 flex items-center justify-center rounded-xl text-gray-400 hover:text-gray-600 hover:bg-gray-100 transition-colors text-2xl"
+                >
+                  ×
+                </button>
+              </div>
+              
+              <!-- Content -->
+              <div class="flex-1 overflow-y-auto p-6">
+                <div v-if="docLoading" class="animate-pulse space-y-4">
+                  <div class="h-6 bg-gray-200 rounded w-1/2"></div>
+                  <div class="h-4 bg-gray-200 rounded w-3/4"></div>
+                  <div class="h-4 bg-gray-200 rounded w-2/3"></div>
+                  <div class="h-4 bg-gray-200 rounded w-5/6"></div>
+                </div>
+                <div 
+                  v-else
+                  class="prose prose-sm max-w-none prose-headings:text-gray-900 prose-a:text-blue-600"
+                  v-html="renderedMarkdown"
+                ></div>
+              </div>
+            </div>
+          </Transition>
+        </div>
+      </Transition>
+    </Teleport>
+    </main>
+  </div>
 </template>
 
 <script setup lang="ts">
 import { ref, computed, onMounted } from 'vue'
 import type { Project } from '~/types/projects'
+
+interface DocFile {
+  name: string
+  path: string
+  size: number
+  modifiedAt: string
+  folder?: string
+}
+
+interface GroupedDocs {
+  folder: string
+  docs: DocFile[]
+}
 
 const route = useRoute()
 const project = ref<Project | null>(null)
@@ -225,6 +443,13 @@ const loading = ref(true)
 const error = ref('')
 const showAddUpdate = ref(false)
 const newUpdate = ref('')
+
+// Documentation state
+const docs = ref<DocFile[]>([])
+const showDocModal = ref(false)
+const currentDoc = ref<DocFile | null>(null)
+const docContent = ref('')
+const docLoading = ref(false)
 
 const typeIcon = computed(() => {
   switch (project.value?.type) {
@@ -237,10 +462,10 @@ const typeIcon = computed(() => {
 
 const typeIconClass = computed(() => {
   switch (project.value?.type) {
-    case 'code': return 'bg-blue-100'
-    case 'writing': return 'bg-amber-100'
-    case 'hybrid': return 'bg-purple-100'
-    default: return 'bg-gray-100'
+    case 'code': return 'bg-gradient-to-br from-blue-100 to-blue-200'
+    case 'writing': return 'bg-gradient-to-br from-amber-100 to-amber-200'
+    case 'hybrid': return 'bg-gradient-to-br from-purple-100 to-purple-200'
+    default: return 'bg-gradient-to-br from-gray-100 to-gray-200'
   }
 })
 
@@ -271,17 +496,116 @@ const completedPhases = computed(() => {
   return project.value?.phases?.filter(p => p.status === 'completed').length ?? 0
 })
 
+// Group docs by folder
+const groupedDocs = computed<GroupedDocs[]>(() => {
+  const groups: Record<string, DocFile[]> = {}
+  
+  for (const doc of docs.value) {
+    const folder = doc.folder || '/'
+    if (!groups[folder]) groups[folder] = []
+    groups[folder].push(doc)
+  }
+  
+  return Object.entries(groups)
+    .map(([folder, docs]) => ({ folder, docs }))
+    .sort((a, b) => {
+      if (a.folder === '/') return -1
+      if (b.folder === '/') return 1
+      return a.folder.localeCompare(b.folder)
+    })
+})
+
+// Get icon for update type
+function getUpdateIcon(type?: string): string {
+  switch (type) {
+    case 'status': return '🔄'
+    case 'progress': return '📈'
+    case 'phase': return '📋'
+    case 'note': return '💬'
+    case 'document': return '📄'
+    case 'assignment': return '👤'
+    case 'created': return '🎉'
+    case 'nudge': return '📢'
+    default: return '📝'
+  }
+}
+
+// Simple markdown to HTML
+const renderedMarkdown = computed(() => {
+  if (!docContent.value) return ''
+  
+  let html = docContent.value
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/^### (.*)$/gm, '<h3 class="text-lg font-bold mt-4 mb-2">$1</h3>')
+    .replace(/^## (.*)$/gm, '<h2 class="text-xl font-bold mt-6 mb-3">$1</h2>')
+    .replace(/^# (.*)$/gm, '<h1 class="text-2xl font-bold mt-6 mb-4">$1</h1>')
+    .replace(/\*\*\*(.*?)\*\*\*/g, '<strong><em>$1</em></strong>')
+    .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
+    .replace(/\*(.*?)\*/g, '<em>$1</em>')
+    .replace(/```(\w*)\n([\s\S]*?)```/g, '<pre class="bg-gray-100 p-4 rounded-xl overflow-x-auto my-4 text-sm"><code>$2</code></pre>')
+    .replace(/`([^`]+)`/g, '<code class="bg-gray-100 px-1.5 py-0.5 rounded text-sm font-mono">$1</code>')
+    .replace(/^- (.*)$/gm, '<li class="ml-4">$1</li>')
+    .replace(/^(\d+)\. (.*)$/gm, '<li class="ml-4">$2</li>')
+    .replace(/^> (.*)$/gm, '<blockquote class="border-l-4 border-blue-300 pl-4 my-3 text-gray-600 italic">$1</blockquote>')
+    .replace(/\[([^\]]+)\]\(([^)]+)\)/g, '<a href="$2" class="text-blue-600 hover:underline" target="_blank">$1</a>')
+    .replace(/^---$/gm, '<hr class="my-6 border-gray-200">')
+    .replace(/\n\n/g, '</p><p class="my-3">')
+    .replace(/\n/g, '<br>')
+  
+  return `<p class="my-3">${html}</p>`
+})
+
 async function fetchProject() {
   loading.value = true
   try {
     const response = await fetch(`/api/projects/${route.params.id}`)
-    if (!response.ok) throw new Error('Project not found')
+    if (!response.ok) throw new Error('Projet non trouvé')
     project.value = await response.json()
   } catch (e: any) {
     error.value = e.message
   } finally {
     loading.value = false
   }
+}
+
+async function fetchDocs() {
+  try {
+    const response = await fetch(`/api/projects/${route.params.id}/docs`)
+    if (response.ok) {
+      const data = await response.json()
+      docs.value = data.docs || []
+    }
+  } catch (e) {
+    console.error('Failed to fetch docs:', e)
+  }
+}
+
+async function openDoc(doc: DocFile) {
+  currentDoc.value = doc
+  showDocModal.value = true
+  docLoading.value = true
+  docContent.value = ''
+  
+  try {
+    const encodedPath = encodeURIComponent(doc.path)
+    const response = await fetch(`/api/projects/${route.params.id}/docs/${encodedPath}`)
+    if (response.ok) {
+      const data = await response.json()
+      docContent.value = data.content
+    }
+  } catch (e) {
+    docContent.value = '❌ Erreur lors du chargement du document'
+  } finally {
+    docLoading.value = false
+  }
+}
+
+function closeDoc() {
+  showDocModal.value = false
+  currentDoc.value = null
+  docContent.value = ''
 }
 
 async function updateProject(updates: any) {
@@ -315,7 +639,6 @@ function updateProgress() {
 }
 
 function completePhase(phaseName: string) {
-  // Find next phase
   const phases = project.value?.phases || []
   const currentIndex = phases.findIndex(p => p.name === phaseName)
   const nextPhase = phases[currentIndex + 1]?.name
@@ -342,9 +665,43 @@ function formatDate(timestamp: string): string {
   })
 }
 
-onMounted(fetchProject)
+function formatDateShort(timestamp: string): string {
+  return new Date(timestamp).toLocaleString('fr-FR', {
+    day: 'numeric',
+    month: 'short'
+  })
+}
+
+function formatFileSize(bytes: number): string {
+  if (bytes < 1024) return `${bytes} B`
+  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`
+  return `${(bytes / (1024 * 1024)).toFixed(1)} MB`
+}
+
+onMounted(() => {
+  fetchProject()
+  fetchDocs()
+})
 
 useHead({
   title: computed(() => project.value?.name ? `${project.value.name} - OpenClaw` : 'Projet - OpenClaw')
 })
+
+// Set project name in route meta for breadcrumb
+const route = useRoute()
+watch(() => project.value, (newProject) => {
+  if (newProject?.name) {
+    route.meta.projectName = newProject.name
+  }
+}, { immediate: true })
 </script>
+
+<style scoped>
+/* Line clamp for history */
+.line-clamp-2 {
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+</style>
