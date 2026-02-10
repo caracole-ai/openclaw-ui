@@ -89,10 +89,56 @@
       <div class="flex flex-col lg:flex-row gap-6">
         
         <!-- ─────────────────────────────────────────────────────────────── -->
-        <!-- MAIN: DOCUMENTS -->
+        <!-- MAIN: RETEX + DOCUMENTS -->
         <!-- ─────────────────────────────────────────────────────────────── -->
-        <div class="flex-1 min-w-0">
-          <div class="bg-white rounded-2xl shadow-sm border h-full">
+        <div class="flex-1 min-w-0 space-y-6">
+          
+          <!-- ─────────────────────────────────────────────────────────────── -->
+          <!-- RETOUR D'EXPÉRIENCE (RETEX) - En haut -->
+          <!-- ─────────────────────────────────────────────────────────────── -->
+          <div v-if="retexDocs.length > 0" class="bg-gradient-to-br from-amber-50 to-orange-50 rounded-2xl shadow-sm border border-amber-200">
+            <!-- Header -->
+            <div class="p-5 border-b border-amber-200">
+              <h2 class="font-bold text-lg flex items-center gap-2 text-amber-800">
+                <span class="text-2xl">📚</span>
+                Retour d'expérience
+                <span class="text-sm font-normal text-amber-600 ml-1">
+                  {{ retexDocs.length }} RETEX
+                </span>
+              </h2>
+              <p class="text-sm text-amber-700 mt-1">
+                Apprentissages et leçons tirées par l'équipe projet
+              </p>
+            </div>
+
+            <!-- RETEX cards -->
+            <div class="p-5">
+              <div class="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-4">
+                <button
+                  v-for="doc in retexDocs"
+                  :key="doc.path"
+                  @click="openDoc(doc)"
+                  class="flex items-start gap-3 p-4 rounded-xl bg-white/80 hover:bg-white hover:shadow-md border-2 border-amber-100 hover:border-amber-300 transition-all text-left group"
+                >
+                  <div class="w-10 h-10 rounded-xl bg-gradient-to-br from-amber-400 to-orange-500 flex items-center justify-center text-white text-lg shadow-sm group-hover:scale-110 transition-transform">
+                    {{ getRetexEmoji(doc.name) }}
+                  </div>
+                  <div class="min-w-0 flex-1">
+                    <div class="font-semibold text-gray-900 truncate">{{ formatRetexName(doc.name) }}</div>
+                    <div class="text-xs text-amber-600 mt-1">
+                      {{ formatFileSize(doc.size) }} · {{ formatDateShort(doc.modifiedAt) }}
+                    </div>
+                  </div>
+                  <span class="text-amber-400 group-hover:text-amber-600 group-hover:translate-x-1 transition-all text-lg">→</span>
+                </button>
+              </div>
+            </div>
+          </div>
+
+          <!-- ─────────────────────────────────────────────────────────────── -->
+          <!-- DOCUMENTATION -->
+          <!-- ─────────────────────────────────────────────────────────────── -->
+          <div class="bg-white rounded-2xl shadow-sm border">
             <!-- Header -->
             <div class="p-5 border-b">
               <h2 class="font-bold text-lg flex items-center gap-2">
@@ -147,48 +193,6 @@
                     project-update.sh {{ project.id }} doc "fichier.md"
                   </code>
                 </span>
-              </div>
-            </div>
-          </div>
-
-          <!-- ─────────────────────────────────────────────────────────────── -->
-          <!-- RETOUR D'EXPÉRIENCE (RETEX) -->
-          <!-- ─────────────────────────────────────────────────────────────── -->
-          <div v-if="retexDocs.length > 0" class="bg-gradient-to-br from-amber-50 to-orange-50 rounded-2xl shadow-sm border border-amber-200 mt-6">
-            <!-- Header -->
-            <div class="p-5 border-b border-amber-200">
-              <h2 class="font-bold text-lg flex items-center gap-2 text-amber-800">
-                <span class="text-2xl">📚</span>
-                Retour d'expérience
-                <span class="text-sm font-normal text-amber-600 ml-1">
-                  {{ retexDocs.length }} RETEX
-                </span>
-              </h2>
-              <p class="text-sm text-amber-700 mt-1">
-                Apprentissages et leçons tirées par l'équipe projet
-              </p>
-            </div>
-
-            <!-- RETEX cards -->
-            <div class="p-5">
-              <div class="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-4">
-                <button
-                  v-for="doc in retexDocs"
-                  :key="doc.path"
-                  @click="openDoc(doc)"
-                  class="flex items-start gap-3 p-4 rounded-xl bg-white/80 hover:bg-white hover:shadow-md border-2 border-amber-100 hover:border-amber-300 transition-all text-left group"
-                >
-                  <div class="w-10 h-10 rounded-xl bg-gradient-to-br from-amber-400 to-orange-500 flex items-center justify-center text-white text-lg shadow-sm group-hover:scale-110 transition-transform">
-                    {{ getRetexEmoji(doc.name) }}
-                  </div>
-                  <div class="min-w-0 flex-1">
-                    <div class="font-semibold text-gray-900 truncate">{{ formatRetexName(doc.name) }}</div>
-                    <div class="text-xs text-amber-600 mt-1">
-                      {{ formatFileSize(doc.size) }} · {{ formatDateShort(doc.modifiedAt) }}
-                    </div>
-                  </div>
-                  <span class="text-amber-400 group-hover:text-amber-600 group-hover:translate-x-1 transition-all text-lg">→</span>
-                </button>
               </div>
             </div>
           </div>
