@@ -191,7 +191,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed } from 'vue'
+import { ref, computed, watch } from 'vue'
 import { useAgentsStatus } from '~/composables/useAgentsStatus'
 import AgentCard from '~/components/AgentCard.vue'
 
@@ -204,7 +204,7 @@ const {
 } = useAgentsStatus()
 
 const groupBy = ref<'status' | 'team' | 'none'>('team') // Default: par équipe
-const viewMode = ref<'compact' | 'detailed'>('detailed')
+const viewMode = ref<'compact' | 'detailed'>('compact') // Default: vue compacte
 const expandedGroups = ref<Set<string>>(new Set()) // Track which groups are expanded
 
 const GROUP_CONFIG = {
@@ -235,6 +235,13 @@ const groupedAgents = computed(() => {
     })
   })).filter(group => group.agents.length > 0)
 })
+
+// Auto-expand tous les groupes au chargement
+watch(groupedAgents, (newGroups) => {
+  if (newGroups.length > 0 && expandedGroups.value.size === 0) {
+    newGroups.forEach(g => expandedGroups.value.add(g.key))
+  }
+}, { immediate: true })
 
 function toggleGroup(key: string) {
   if (expandedGroups.value.has(key)) {
