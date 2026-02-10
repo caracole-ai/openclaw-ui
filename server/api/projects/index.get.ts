@@ -109,23 +109,14 @@ export default defineEventHandler(async (): Promise<ProjectsResponse> => {
     // Sync projects.json from filesystem (source of truth)
     syncProjectsJson()
     
-    // Load manual projects from projects.json
-    let manualProjects: Project[] = []
+    // Load projects from projects.json (synced from filesystem by sync-projects.sh)
+    // Single source of truth - no more dual loading
+    let allProjects: Project[] = []
     if (existsSync(PROJECTS_FILE)) {
       const data = await readFile(PROJECTS_FILE, 'utf-8')
       const projectsData: ProjectsData = JSON.parse(data)
-      manualProjects = projectsData.projects
+      allProjects = projectsData.projects
     }
-    
-    // Load filesystem projects
-    const fsProjects = await loadFilesystemProjects()
-    
-    // Merge, avoiding duplicates (manual takes precedence)
-    const manualIds = new Set(manualProjects.map(p => p.id))
-    const allProjects = [
-      ...manualProjects,
-      ...fsProjects.filter(p => !manualIds.has(p.id))
-    ]
 
     // Calculate staleHours for each project
     const now = Date.now()
