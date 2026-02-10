@@ -688,7 +688,6 @@ useHead({
 })
 
 // Set project name in route meta for breadcrumb
-const route = useRoute()
 watch(() => project.value, (newProject) => {
   if (newProject?.name) {
     route.meta.projectName = newProject.name
