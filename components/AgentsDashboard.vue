@@ -5,6 +5,21 @@
       <h2 class="text-2xl font-bold text-gray-900">Agents</h2>
       
       <div class="flex items-center gap-3">
+        <!-- Bouton Tout déplier / Tout replier (visible seulement si groupé) -->
+        <button
+          v-if="groupBy !== 'none'"
+          @click="allExpanded ? collapseAll() : expandAll()"
+          class="text-sm border rounded-lg px-3 py-1.5 bg-white hover:bg-gray-50 transition-colors flex items-center gap-1.5"
+        >
+          <svg v-if="!allExpanded" class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" />
+          </svg>
+          <svg v-else class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 15l7-7 7 7" />
+          </svg>
+          {{ allExpanded ? 'Tout replier' : 'Tout déplier' }}
+        </button>
+        
         <!-- Groupement -->
         <select 
           v-model="groupBy"
@@ -94,35 +109,66 @@
     </div>
 
     <!-- Vue groupée -->
-    <div v-else-if="groupBy !== 'none'" class="space-y-6">
+    <div v-else-if="groupBy !== 'none'" class="space-y-4">
       <div 
         v-for="group in groupedAgents" 
         :key="group.key"
-        class="space-y-3"
+        class="bg-white rounded-lg border shadow-sm overflow-hidden transition-all"
       >
-        <!-- Group header -->
-        <div class="flex items-center gap-2">
-          <span class="text-lg">{{ group.icon }}</span>
-          <h3 class="font-semibold text-gray-700">{{ group.label }}</h3>
-          <span class="text-sm text-gray-500 bg-gray-100 px-2 py-0.5 rounded-full">
-            {{ group.agents.length }}
-          </span>
-        </div>
-        
-        <!-- Agents grid -->
-        <div 
-          class="grid gap-4"
-          :class="viewMode === 'compact' 
-            ? 'grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6' 
-            : 'grid-cols-1 md:grid-cols-2 lg:grid-cols-3'"
+        <!-- Group header (cliquable) -->
+        <button
+          @click="toggleGroup(group.key)"
+          class="w-full flex items-center justify-between p-4 hover:bg-gray-50 transition-colors"
         >
-          <AgentCard 
-            v-for="agent in group.agents" 
-            :key="agent.id"
-            :agent="agent"
-            :compact="viewMode === 'compact'"
-          />
-        </div>
+          <div class="flex items-center gap-3">
+            <svg 
+              class="w-5 h-5 text-gray-400 transition-transform"
+              :class="{ 'rotate-90': expandedGroups.has(group.key) }"
+              fill="none" 
+              stroke="currentColor" 
+              viewBox="0 0 24 24"
+            >
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7" />
+            </svg>
+            <span class="text-2xl">{{ group.icon }}</span>
+            <h3 class="font-semibold text-gray-900">{{ group.label }}</h3>
+            <span class="text-sm text-gray-500 bg-gray-100 px-2.5 py-0.5 rounded-full font-medium">
+              {{ group.agents.length }}
+            </span>
+          </div>
+          <span class="text-xs text-gray-400">
+            {{ expandedGroups.has(group.key) ? 'Replier' : 'Déplier' }}
+          </span>
+        </button>
+        
+        <!-- Agents grid (collapsible) -->
+        <Transition
+          enter-active-class="transition-all duration-300 ease-out"
+          enter-from-class="opacity-0 max-h-0"
+          enter-to-class="opacity-100 max-h-screen"
+          leave-active-class="transition-all duration-300 ease-in"
+          leave-from-class="opacity-100 max-h-screen"
+          leave-to-class="opacity-0 max-h-0"
+        >
+          <div 
+            v-if="expandedGroups.has(group.key)"
+            class="border-t bg-gray-50 p-4"
+          >
+            <div 
+              class="grid gap-4"
+              :class="viewMode === 'compact' 
+                ? 'grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6' 
+                : 'grid-cols-1 md:grid-cols-2 lg:grid-cols-3'"
+            >
+              <AgentCard 
+                v-for="agent in group.agents" 
+                :key="agent.id"
+                :agent="agent"
+                :compact="viewMode === 'compact'"
+              />
+            </div>
+          </div>
+        </Transition>
       </div>
     </div>
 
@@ -157,8 +203,9 @@ const {
   refresh,
 } = useAgentsStatus()
 
-const groupBy = ref<'status' | 'team' | 'none'>('status')
+const groupBy = ref<'status' | 'team' | 'none'>('team') // Default: par équipe
 const viewMode = ref<'compact' | 'detailed'>('detailed')
+const expandedGroups = ref<Set<string>>(new Set()) // Track which groups are expanded
 
 const GROUP_CONFIG = {
   status: [
@@ -187,5 +234,25 @@ const groupedAgents = computed(() => {
       return (agent.team || 'unknown') === group.key
     })
   })).filter(group => group.agents.length > 0)
+})
+
+function toggleGroup(key: string) {
+  if (expandedGroups.value.has(key)) {
+    expandedGroups.value.delete(key)
+  } else {
+    expandedGroups.value.add(key)
+  }
+}
+
+function expandAll() {
+  groupedAgents.value.forEach(g => expandedGroups.value.add(g.key))
+}
+
+function collapseAll() {
+  expandedGroups.value.clear()
+}
+
+const allExpanded = computed(() => {
+  return groupedAgents.value.every(g => expandedGroups.value.has(g.key))
 })
 </script>
