@@ -27,7 +27,7 @@ async function fetchProjects() {
   loading.value = true
   error.value = null
   try {
-    const data = await $fetch<{ projects: Project[] }>('/api/sources/projects')
+    const data = await $fetch<{ projects: Project[] }>('/api/projects')
     projects.value = data.projects || []
     fetched = true
   } catch (err: any) {

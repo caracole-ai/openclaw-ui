@@ -5,7 +5,7 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest'
 import { readFile, writeFile, mkdir, rm } from 'fs/promises'
 import { existsSync } from 'fs'
-import type { Project, ProjectsData } from '~/types/projects'
+import type { ProjectDetail as Project } from '~/types/project'
 
 // Path de test isolé
 const TEST_PROJECTS_DIR = '/tmp/openclaw-test-projects'

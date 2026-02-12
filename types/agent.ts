@@ -133,3 +133,9 @@ export interface Deliberation {
   completedAt?: string
   result?: string
 }
+
+export interface ApiError {
+  message: string
+  code?: string
+  statusCode: number
+}

@@ -18,16 +18,15 @@
 
 <script setup lang="ts">
 import { computed } from 'vue'
-import type { AgentStatus } from '~/types/agents'
+import type { Agent } from '~/types/agent'
 
 const props = defineProps<{
-  agents: AgentStatus[]
+  agents: Agent[]
 }>()
 
 const stats = computed(() => {
   const totalAgents = props.agents.length
-  // Use real status values: online = active
-  const activeAgents = props.agents.filter(a => a.status === 'online').length
+  const activeAgents = props.agents.filter(a => a.status === 'active').length
   const activePercentage = totalAgents > 0 ? Math.round((activeAgents / totalAgents) * 100) : 0
   
   return {

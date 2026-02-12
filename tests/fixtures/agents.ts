@@ -3,7 +3,48 @@
  * Couvre tous les cas de statut + tokens + contexte
  */
 
-import type { AgentStatus, AgentsStatusResponse, ActiveSession, TokenUsage } from '~/types/agents'
+// Legacy v2 types inlined for test fixtures
+interface TokenUsage {
+  input: number
+  output: number
+  total: number
+  remaining: number
+  percentUsed: number
+  contextSize: number
+}
+
+interface ActiveSession {
+  sessionId: string
+  key: string
+  kind: string
+  context: string
+  updatedAt: number
+  ageMs: number
+  tokens: TokenUsage
+  model: string
+}
+
+interface AgentStatus {
+  id: string
+  name: string
+  status: 'online' | 'idle' | 'offline'
+  lastHeartbeat: string | null
+  lastActivity: string | null
+  lastActivityAgeMs: number | null
+  activeSessions: number
+  workspace: string
+  model: string
+  tokens: TokenUsage
+  sessions: ActiveSession[]
+  currentContext: string | null
+  quotaWarning: boolean
+}
+
+interface AgentsStatusResponse {
+  agents: AgentStatus[]
+  timestamp: string
+  totals: { online: number; idle: number; offline: number; totalTokens: number }
+}
 
 // Helpers pour générer des timestamps relatifs
 const now = () => new Date().toISOString()

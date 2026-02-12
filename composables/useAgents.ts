@@ -15,7 +15,7 @@ async function fetchAgents(filters?: { team?: AgentTeam; status?: string }) {
     if (filters?.team) params.set('team', filters.team)
     if (filters?.status) params.set('status', filters.status)
     const qs = params.toString()
-    const url = `/api/sources/agents${qs ? `?${qs}` : ''}`
+    const url = `/api/agents${qs ? `?${qs}` : ''}`
     const data = await $fetch<{ agents: Agent[] }>(url)
     agents.value = data.agents || []
     fetched = true

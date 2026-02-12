@@ -5,7 +5,7 @@
 import { describe, it, expect, vi } from 'vitest'
 import { mount } from '@vue/test-utils'
 import ProjectCard from '~/components/ProjectCard.vue'
-import type { Project } from '~/types/projects'
+import type { ProjectDetail as Project } from '~/types/project'
 
 // Mock NuxtLink
 vi.mock('#app', () => ({

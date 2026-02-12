@@ -469,7 +469,7 @@
 
 <script setup lang="ts">
 import { ref, computed, onMounted } from 'vue'
-import type { Project } from '~/types/projects'
+import type { ProjectDetail as Project } from '~/types/project'
 
 interface DocFile {
   name: string
