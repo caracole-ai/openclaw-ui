@@ -44,6 +44,9 @@
                 >
                   {{ agentTeam.icon }} {{ agentTeam.label }}
                 </span>
+                <span v-if="agent.role" class="px-2 py-0.5 text-xs font-medium rounded-full bg-gray-100 text-gray-600">
+                  {{ agent.role }}
+                </span>
               </div>
               <p class="text-gray-500 font-mono text-sm">{{ agent.id }}</p>
               <!-- Dernière activité -->
@@ -232,20 +235,8 @@ const tabs = [
 // Fetch agent details
 const { data: agent, pending, error } = await useFetch(`/api/agents/${agentId.value}`)
 
-// Fetch projects where agent is involved
-const { data: projectsData } = await useFetch('/api/projects')
-const agentProjects = computed(() => {
-  if (!projectsData.value?.projects) return []
-  return projectsData.value.projects.filter((p: any) => {
-    // Check if agent is in team
-    const inTeam = p.team?.some((t: any) => t.agent === agentId.value)
-    // Check if agent is in assignees
-    const inAssignees = p.assignees?.includes(agentId.value)
-    // Check if agent is owner
-    const isOwner = p.owner === agentId.value
-    return inTeam || inAssignees || isOwner
-  })
-})
+// Projects come from the agent API (source of truth: projects.json)
+const agentProjects = computed(() => agent.value?.projects || [])
 
 useHead({
   title: computed(() => `${agent.value?.name || agentId.value} - OpenClaw`)
@@ -317,13 +308,16 @@ function getChannelDisplayName(contextId: string): string {
   return channel?.displayName || channel?.name || contextId
 }
 
-// Determine agent team from workspace path
+// Team & role from source of truth (agents.json fields)
+const TEAM_MAP: Record<string, { label: string; icon: string; color: string }> = {
+  code: { label: 'Code', icon: '💻', color: 'bg-blue-100 text-blue-700' },
+  writing: { label: 'Écriture', icon: '✍️', color: 'bg-purple-100 text-purple-700' },
+  system: { label: 'System', icon: '🔧', color: 'bg-orange-100 text-orange-700' },
+  free: { label: 'Libre', icon: '🌟', color: 'bg-yellow-100 text-yellow-700' },
+}
 const agentTeam = computed(() => {
-  const workspace = agent.value?.workspace || ''
-  if (workspace.includes('workspace-code-')) return { key: 'code', label: 'Code', icon: '💻', color: 'bg-blue-100 text-blue-700' }
-  if (workspace.includes('workspace-writing-')) return { key: 'writing', label: 'Écriture', icon: '✍️', color: 'bg-purple-100 text-purple-700' }
-  if (workspace.includes('workspace-free-')) return { key: 'free', label: 'Libre', icon: '🌟', color: 'bg-yellow-100 text-yellow-700' }
-  return { key: 'unknown', label: 'Autre', icon: '❓', color: 'bg-gray-100 text-gray-700' }
+  const team = agent.value?.team || 'unknown'
+  return TEAM_MAP[team] || { label: team, icon: '❓', color: 'bg-gray-100 text-gray-700' }
 })
 
 // Format last activity
