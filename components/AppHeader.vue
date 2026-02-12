@@ -143,23 +143,28 @@ const RESET_HOURS = [0, 5, 10, 15, 20]
 const now = ref(Date.now())
 
 function getNextReset(): Date {
-  const paris = new Date(now.value).toLocaleString('en-US', { timeZone: 'Europe/Paris' })
-  const parisDate = new Date(paris)
-  const currentHour = parisDate.getHours()
-  const currentMin = parisDate.getMinutes()
-  const currentDecimal = currentHour + currentMin / 60
+  // Get current time in Paris using Intl to extract hour/minute reliably
+  const formatter = new Intl.DateTimeFormat('en-GB', {
+    timeZone: 'Europe/Paris',
+    hour: 'numeric', minute: 'numeric', year: 'numeric', month: 'numeric', day: 'numeric',
+    hour12: false,
+  })
+  const parts = formatter.formatToParts(new Date(now.value))
+  const get = (t: string) => parseInt(parts.find(p => p.type === t)?.value || '0')
+  const currentDecimal = get('hour') + get('minute') / 60
 
-  // Find next reset hour
+  // Find next reset hour in Paris time
   let nextH = RESET_HOURS.find(h => h > currentDecimal)
   const isNextDay = nextH === undefined
   if (isNextDay) nextH = RESET_HOURS[0] // tomorrow 00:00
 
-  // Build the reset date in Paris time
-  const reset = new Date(parisDate)
-  reset.setHours(nextH!, 0, 0, 0)
-  if (isNextDay) reset.setDate(reset.getDate() + 1)
+  // Calculate ms until next reset
+  const hoursUntil = isNextDay
+    ? (24 - currentDecimal) + nextH!
+    : nextH! - currentDecimal
+  const msUntil = hoursUntil * 60 * 60 * 1000
 
-  return reset
+  return new Date(now.value + msUntil)
 }
 
 const nextReset = computed(() => getNextReset())
@@ -184,8 +189,8 @@ const countdownText = computed(() => {
 })
 
 const nextResetLabel = computed(() => {
-  const h = nextReset.value.getHours()
-  return `${h.toString().padStart(2, '0')}:00`
+  const h = new Intl.DateTimeFormat('en-GB', { timeZone: 'Europe/Paris', hour: '2-digit', minute: '2-digit', hour12: false }).format(nextReset.value)
+  return h
 })
 
 const sessionWidgetClass = computed(() => {
