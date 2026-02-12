@@ -3,11 +3,12 @@
  * Relance un projet stale. Cooldown 15s.
  * Source: SQLite
  */
-import { exec } from 'child_process'
+import { execFile } from 'child_process'
 import { promisify } from 'util'
 import { getDb } from '~/server/utils/db'
+import type { DbProject, DbProjectAgent } from '~/server/types/db'
 
-const execAsync = promisify(exec)
+const execFileAsync = promisify(execFile)
 const COOLDOWN_MS = 15_000
 
 export default defineEventHandler(async (event) => {
@@ -15,7 +16,7 @@ export default defineEventHandler(async (event) => {
   if (!projectId) throw createError({ statusCode: 400, statusMessage: 'Project ID required' })
 
   const db = getDb()
-  const project = db.prepare('SELECT * FROM projects WHERE id = ?').get(projectId) as any
+  const project = db.prepare('SELECT * FROM projects WHERE id = ?').get(projectId) as DbProject | undefined
   if (!project) throw createError({ statusCode: 404, statusMessage: `Project ${projectId} not found` })
 
   // Check cooldown
@@ -28,16 +29,15 @@ export default defineEventHandler(async (event) => {
   }
 
   // Get assignees
-  const agents = db.prepare('SELECT agent_id FROM project_agents WHERE project_id = ?').all(projectId) as any[]
+  const agents = db.prepare('SELECT agent_id FROM project_agents WHERE project_id = ?').all(projectId) as DbProjectAgent[]
   const assignees = agents.map(a => a.agent_id)
   if (!assignees.length) throw createError({ statusCode: 400, statusMessage: 'Aucun agent assigné à ce projet' })
 
-  const nudgeTask = `🔄 **Nudge projet: "${project.name}"**\n\n**Status:** ${project.status} (${project.progress || 0}%)\n**Agents:** ${assignees.join(', ')}\n\nFaites le point. Si bloqués, concertez-vous. Si décision nécessaire, demandez à @lio.`
+  const nudgeTask = `🔄 **Nudge projet: "${project.name}"**\n\n**État:** ${project.state} (${project.progress || 0}%)\n**Agents:** ${assignees.join(', ')}\n\nFaites le point. Si bloqués, concertez-vous. Si décision nécessaire, demandez à @lio.`
 
   // Try to nudge via openclaw
   try {
-    const spawnCmd = `openclaw sessions spawn --agent orchestrator --task ${JSON.stringify(nudgeTask)} --timeout 300`
-    await execAsync(spawnCmd, { timeout: 10_000 })
+    await execFileAsync('openclaw', ['sessions', 'spawn', '--agent', 'orchestrator', '--task', nudgeTask, '--timeout', '300'], { timeout: 10_000 })
   } catch (e: any) {
     console.warn('[nudge] spawn failed:', e.message)
   }

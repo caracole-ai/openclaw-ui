@@ -56,6 +56,8 @@ describe('AgentCard', () => {
         } 
       }
     })
-    expect(wrapper.text()).toContain('test-agent')
+    // ID is in the link href, not displayed as text. Check the role instead.
+    expect(wrapper.text()).toContain('code')
+    expect(wrapper.html()).toContain('test-agent')
   })
 })

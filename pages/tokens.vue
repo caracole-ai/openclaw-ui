@@ -356,32 +356,7 @@ function barWidth(value: number, max: number): string {
 
 // -- Formatting helpers --
 
-function formatTokens(n: number): string {
-  if (n == null) return '0'
-  if (n >= 1_000_000) return `${(n / 1_000_000).toFixed(1)}M`
-  if (n >= 1_000) return `${Math.round(n / 1_000)}k`
-  return String(n)
-}
-
-function formatCost(n: number): string {
-  if (n == null) return '\u20AC0.0000'
-  return `\u20AC${n.toFixed(4)}`
-}
-
-function formatDate(period: string): string {
-  if (!period) return ''
-  try {
-    const d = new Date(period)
-    if (isNaN(d.getTime())) return period
-    return d.toLocaleDateString('fr-FR', {
-      day: '2-digit',
-      month: 'short',
-      year: 'numeric'
-    })
-  } catch {
-    return period
-  }
-}
+// formatTokens, formatCost, formatDate are auto-imported from utils/format.ts
 
 // -- Retry handler --
 

@@ -79,7 +79,7 @@
                 :to="`/project/${project.id}`"
                 class="text-sm font-medium text-gray-900 hover:text-blue-600 transition-colors block truncate"
               >
-                {{ getStatusEmoji(project.status) }} {{ project.name }}
+                {{ getStatusEmoji(project.state) }} {{ project.name }}
               </NuxtLink>
               <div v-if="getProjectAgents(project).length > 0" class="flex flex-wrap gap-1">
                 <NuxtLink
@@ -215,7 +215,7 @@ const loading = computed(() => agentsPending.value || projectsLoading.value)
 
 // Active projects for preview (in-progress + review)
 const activeProjects = computed(() => {
-  return (projects.value || []).filter(p => p.status === 'in-progress' || p.status === 'review')
+  return (projects.value || []).filter(p => p.state === 'build' || p.state === 'review')
 })
 
 // Active agents with their assigned projects (in-progress only)
@@ -238,15 +238,15 @@ const activeAgentsWithProjects = computed(() => {
   })
 })
 
-// Projects count by status
+// Projects count by state
 const projectsByStatus = computed(() => {
   const list = projects.value || []
   return {
-    planning: list.filter(p => p.status === 'planning').length,
-    inProgress: list.filter(p => p.status === 'in-progress').length,
-    review: list.filter(p => p.status === 'review').length,
-    completed: list.filter(p => p.status === 'completed').length,
-    paused: list.filter(p => p.status === 'paused').length
+    planning: list.filter(p => p.state === 'planning').length,
+    inProgress: list.filter(p => p.state === 'build').length,
+    review: list.filter(p => p.state === 'review').length,
+    completed: list.filter(p => p.state === 'done').length,
+    paused: list.filter(p => p.state === 'backlog').length
   }
 })
 
@@ -265,7 +265,7 @@ const metrics = computed(() => {
     
     // Projects - use normalized data (review already mapped to in-progress)
     totalProjects: projectsList.length,
-    activeProjects: projectsList.filter(p => p.status === 'in-progress').length,
+    activeProjects: projectsList.filter(p => p.state === 'build').length,
     
     // Sessions - derived from agents data
     totalSessions,
@@ -273,15 +273,7 @@ const metrics = computed(() => {
   }
 })
 
-function formatTokens(tokens: number): string {
-  if (tokens >= 1_000_000) {
-    return `${(tokens / 1_000_000).toFixed(1)}M`
-  }
-  if (tokens >= 1_000) {
-    return `${(tokens / 1_000).toFixed(0)}k`
-  }
-  return tokens.toString()
-}
+// formatTokens is auto-imported from utils/format.ts
 
 // Get agents from project (supports both assignees and team/lead)
 function getProjectAgents(project: any): string[] {
@@ -303,16 +295,18 @@ function formatAgentName(agent: string): string {
   return agent.split('-')[0]
 }
 
-// Get emoji for project status
-function getStatusEmoji(status: string): string {
+// Get emoji for project state
+function getStatusEmoji(state: string): string {
   const emojis: Record<string, string> = {
+    'backlog': '📋',
     'planning': '📝',
-    'in-progress': '🔄',
+    'build': '🔨',
     'review': '👀',
-    'paused': '⏸️',
-    'completed': '✅'
+    'delivery': '🚀',
+    'rex': '💡',
+    'done': '✅'
   }
-  return emojis[status] || '📋'
+  return emojis[state] || '📋'
 }
 
 let refreshInterval: ReturnType<typeof setInterval> | null = null

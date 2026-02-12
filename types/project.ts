@@ -1,5 +1,4 @@
 export type ProjectState = 'backlog' | 'planning' | 'build' | 'review' | 'delivery' | 'rex' | 'done'
-export type ProjectStatus = 'backlog' | 'planning' | 'in-progress' | 'review' | 'paused' | 'completed' | 'archived'
 export type ProjectType = 'code' | 'writing' | 'hybrid'
 
 export interface ProjectPhase {
@@ -26,7 +25,6 @@ export interface Project {
   name: string
   description?: string
   type?: ProjectType
-  status: ProjectStatus
   state: ProjectState
   progress: number
   lead?: string

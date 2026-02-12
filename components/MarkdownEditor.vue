@@ -297,16 +297,8 @@ async function saveContent() {
 }
 
 // Date formatting
-function formatDate(iso: string): string {
-  const date = new Date(iso)
-  return date.toLocaleDateString('fr-FR', {
-    day: 'numeric',
-    month: 'short',
-    year: 'numeric',
-    hour: '2-digit',
-    minute: '2-digit'
-  })
-}
+// formatDate → use formatDateFull from utils/format.ts (auto-imported)
+const formatDate = formatDateFull
 
 // ---- Markdown rendering ----
 // Sanitize text to prevent XSS by escaping HTML entities

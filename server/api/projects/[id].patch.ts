@@ -1,8 +1,11 @@
 /**
  * PATCH /api/projects/:id
  * Source: SQLite
+ * Hooks: state transition to review/rex triggers ceremony channel creation
  */
 import { getDb } from '~/server/utils/db'
+import { serializeProject } from '~/server/utils/serializers'
+import type { DbProject, DbProjectAgent, DbProjectPhase, DbProjectUpdate } from '~/server/types/db'
 
 const ALLOWED_FIELDS = ['name', 'description', 'type', 'status', 'state', 'progress', 'lead', 'channel', 'channel_id', 'workspace', 'github_repo', 'github_created', 'current_phase', 'last_nudge_at']
 const FIELD_MAP: Record<string, string> = {
@@ -17,8 +20,9 @@ export default defineEventHandler(async (event) => {
   const body = await readBody(event)
   const db = getDb()
 
-  const existing = db.prepare('SELECT id FROM projects WHERE id = ?').get(id)
+  const existing = db.prepare('SELECT * FROM projects WHERE id = ?').get(id) as DbProject | undefined
   if (!existing) throw createError({ statusCode: 404, statusMessage: `Projet '${id}' non trouvé` })
+  const oldState = existing.state
 
   // Build SET clause from allowed fields
   const sets: string[] = ['updated_at = datetime(\'now\')']
@@ -73,23 +77,25 @@ export default defineEventHandler(async (event) => {
     )
   }
 
-  // Return full project (same format as GET)
-  const p = db.prepare('SELECT * FROM projects WHERE id = ?').get(id) as any
-  const team = db.prepare('SELECT agent_id, role FROM project_agents WHERE project_id = ?').all(id) as any[]
-  const phases = db.prepare('SELECT * FROM project_phases WHERE project_id = ? ORDER BY sort_order').all(id) as any[]
-  const updates = db.prepare('SELECT * FROM project_updates WHERE project_id = ? ORDER BY created_at DESC').all(id) as any[]
-
-  return {
-    id: p.id, name: p.name, description: p.description, type: p.type,
-    status: p.status, state: p.state, progress: p.progress, lead: p.lead,
-    channel: p.channel, channelId: p.channel_id, workspace: p.workspace,
-    github: { repo: p.github_repo, created: !!p.github_created },
-    currentPhase: p.current_phase, lastNudgeAt: p.last_nudge_at,
-    createdAt: p.created_at, updatedAt: p.updated_at,
-    team: team.map(a => ({ agent: a.agent_id, role: a.role })),
-    agents: team.map(a => a.agent_id),
-    assignees: team.map(a => a.agent_id),
-    phases: phases.map(ph => ({ name: ph.name, status: ph.status, startedAt: ph.started_at, completedAt: ph.completed_at })),
-    updates: updates.map(u => ({ timestamp: u.created_at, agentId: u.agent_id, message: u.message, type: u.type })),
+  // --- Ceremony hook: review/rex state transitions ---
+  const newState = body.state
+  if (newState && newState !== oldState && (newState === 'review' || newState === 'rex')) {
+    // Fire and forget — call ceremony endpoint asynchronously
+    const baseUrl = process.env.NUXT_PUBLIC_BASE_URL || 'http://localhost:8080'
+    fetch(`${baseUrl}/api/projects/${id}/ceremony`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ ceremony: newState }),
+    }).catch(err => {
+      console.error(`[ceremony] Failed to trigger ${newState} for ${id}:`, err)
+    })
   }
+
+  // Return full project (same format as GET)
+  const p = db.prepare('SELECT * FROM projects WHERE id = ?').get(id) as DbProject
+  const team = db.prepare('SELECT * FROM project_agents WHERE project_id = ?').all(id) as DbProjectAgent[]
+  const phases = db.prepare('SELECT * FROM project_phases WHERE project_id = ? ORDER BY sort_order').all(id) as DbProjectPhase[]
+  const updates = db.prepare('SELECT * FROM project_updates WHERE project_id = ? ORDER BY created_at DESC').all(id) as DbProjectUpdate[]
+
+  return serializeProject(p, { team, phases, updates })
 })

@@ -1,4 +1,4 @@
-import { ref, computed } from 'vue'
+import { ref, computed, onUnmounted } from 'vue'
 import type { Project, ProjectState } from '~/types/project'
 
 export interface KanbanColumn {
@@ -22,9 +22,13 @@ const projects = ref<Project[]>([])
 const loading = ref(false)
 const error = ref<string | null>(null)
 let fetched = false
+let pollTimer: ReturnType<typeof setInterval> | null = null
+let subscribers = 0
+
+const POLL_INTERVAL = 10_000
 
 async function fetchProjects() {
-  loading.value = true
+  if (!fetched) loading.value = true
   error.value = null
   try {
     const data = await $fetch<{ projects: Project[] }>('/api/projects')
@@ -34,6 +38,19 @@ async function fetchProjects() {
     error.value = err.message || 'Erreur chargement projets'
   } finally {
     loading.value = false
+  }
+}
+
+function startPolling() {
+  if (pollTimer || import.meta.server) return
+  fetchProjects()
+  pollTimer = setInterval(() => fetchProjects(), POLL_INTERVAL)
+}
+
+function stopPolling() {
+  if (pollTimer) {
+    clearInterval(pollTimer)
+    pollTimer = null
   }
 }
 
@@ -54,17 +71,18 @@ export function useProjects() {
     return map
   })
 
-  if (!import.meta.server && !fetched) {
-    const { on } = useWebSocket()
-    on('project:stateChanged', (data: { id: string; state: ProjectState }) => {
-      const p = projects.value.find(p => p.id === data.id)
-      if (p) p.state = data.state
-    })
-    on('project:created', (data: Project) => {
-      projects.value.push(data)
-    })
+  // Auto-manage polling lifecycle (client only)
+  if (!import.meta.server) {
+    subscribers++
+    startPolling()
 
-    fetchProjects()
+    onUnmounted(() => {
+      subscribers--
+      if (subscribers <= 0) {
+        subscribers = 0
+        stopPolling()
+      }
+    })
   }
 
   return { projects, projectsByState, getProject, fetchProjects, loading, error, KANBAN_COLUMNS }

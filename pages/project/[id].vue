@@ -69,15 +69,17 @@
               <div>Màj {{ formatDate(project.updatedAt) }}</div>
             </div>
             <select 
-              v-model="project.status"
+              v-model="project.state"
               @change="updateStatus"
               class="text-sm border-2 border-gray-200 rounded-xl px-3 py-2 bg-white hover:border-blue-300 transition-colors focus:outline-none focus:border-blue-500"
             >
-              <option value="planning">📋 Planification</option>
-              <option value="in-progress">🔄 En cours</option>
-              <option value="review">👀 En revue</option>
-              <option value="paused">⏸️ En pause</option>
-              <option value="completed">✅ Terminé</option>
+              <option value="backlog">📋 Backlog</option>
+              <option value="planning">📝 Planning</option>
+              <option value="build">🔨 Build</option>
+              <option value="review">👀 Review</option>
+              <option value="delivery">🚀 Delivery</option>
+              <option value="rex">💡 REX</option>
+              <option value="done">✅ Done</option>
             </select>
           </div>
         </div>
@@ -517,26 +519,29 @@ const typeIconClass = computed(() => {
 })
 
 const statusClass = computed(() => {
-  switch (project.value?.status) {
-    case 'planning': return 'bg-gray-100 text-gray-700'
-    case 'in-progress': return 'bg-blue-100 text-blue-700'
+  switch (project.value?.state) {
+    case 'backlog': return 'bg-gray-100 text-gray-700'
+    case 'planning': return 'bg-blue-100 text-blue-700'
+    case 'build': return 'bg-amber-100 text-amber-700'
     case 'review': return 'bg-purple-100 text-purple-700'
-    case 'paused': return 'bg-yellow-100 text-yellow-700'
-    case 'completed': return 'bg-green-100 text-green-700'
+    case 'delivery': return 'bg-emerald-100 text-emerald-700'
+    case 'rex': return 'bg-pink-100 text-pink-700'
+    case 'done': return 'bg-green-100 text-green-700'
     default: return 'bg-gray-100 text-gray-700'
   }
 })
 
 const statusLabel = computed(() => {
   const labels: Record<string, string> = {
-    'planning': 'Planification',
-    'in-progress': 'En cours',
-    'review': 'En revue',
-    'paused': 'En pause',
-    'completed': 'Terminé',
-    'archived': 'Archivé'
+    'backlog': 'Backlog',
+    'planning': 'Planning',
+    'build': 'Build',
+    'review': 'Review',
+    'delivery': 'Delivery',
+    'rex': 'REX',
+    'done': 'Done'
   }
-  return labels[project.value?.status || ''] || project.value?.status
+  return labels[project.value?.state || ''] || project.value?.state
 })
 
 const completedPhases = computed(() => {
@@ -681,8 +686,9 @@ async function openDoc(doc: DocFile) {
   docContent.value = ''
   
   try {
+    const encodedName = encodeURIComponent(doc.name)
     const encodedPath = encodeURIComponent(doc.path)
-    const response = await fetch(`/api/projects/${route.params.id}/docs/${encodedPath}`)
+    const response = await fetch(`/api/projects/${route.params.id}/docs/${encodedName}?path=${encodedPath}`)
     if (response.ok) {
       const data = await response.json()
       docContent.value = data.content
@@ -718,8 +724,8 @@ async function updateProject(updates: any) {
 
 function updateStatus() {
   updateProject({ 
-    status: project.value?.status,
-    message: `Status changé en ${project.value?.status}`
+    state: project.value?.state,
+    message: `État changé en ${project.value?.state}`
   })
 }
 
@@ -748,27 +754,9 @@ function addUpdate() {
   showAddUpdate.value = false
 }
 
-function formatDate(timestamp: string): string {
-  return new Date(timestamp).toLocaleString('fr-FR', {
-    day: 'numeric',
-    month: 'short',
-    hour: '2-digit',
-    minute: '2-digit'
-  })
-}
-
-function formatDateShort(timestamp: string): string {
-  return new Date(timestamp).toLocaleString('fr-FR', {
-    day: 'numeric',
-    month: 'short'
-  })
-}
-
-function formatFileSize(bytes: number): string {
-  if (bytes < 1024) return `${bytes} B`
-  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`
-  return `${(bytes / (1024 * 1024)).toFixed(1)} MB`
-}
+// formatDateShort, formatFileSize are auto-imported from utils/format.ts
+// Alias formatDate to formatDateFull for this page (needs time component)
+const formatDate = formatDateFull
 
 onMounted(() => {
   fetchProject()

@@ -4,10 +4,10 @@
  * Utilisé pour /clear et autres commandes
  */
 
-import { exec } from 'child_process'
+import { execFile } from 'child_process'
 import { promisify } from 'util'
 
-const execAsync = promisify(exec)
+const execFileAsync = promisify(execFile)
 
 export default defineEventHandler(async (event) => {
   const body = await readBody(event)
@@ -29,15 +29,7 @@ export default defineEventHandler(async (event) => {
   }
 
   try {
-    // Utiliser openclaw CLI pour envoyer le message
-    // La commande sessions_send de l'API tool interne
-    const escapedMessage = message.replace(/"/g, '\\"')
-    const escapedKey = sessionKey.replace(/"/g, '\\"')
-    
-    // On utilise openclaw send qui envoie un message dans une session
-    const command = `openclaw send --session "${escapedKey}" "${escapedMessage}"`
-    
-    const { stdout, stderr } = await execAsync(command, {
+    const { stdout } = await execFileAsync('openclaw', ['send', '--session', sessionKey, message], {
       timeout: 30000
     })
 

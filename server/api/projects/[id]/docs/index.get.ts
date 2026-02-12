@@ -1,11 +1,36 @@
 /**
  * GET /api/projects/:id/docs
- * Lists .md files in project workspace. Path from DB.
+ * Lists .md files in project workspace (recursive).
  */
 import { readdir, stat } from 'fs/promises'
 import { existsSync } from 'fs'
-import { join } from 'path'
+import { join, relative } from 'path'
 import { getDb } from '~/server/utils/db'
+
+async function scanDir(dir: string, base: string): Promise<any[]> {
+  const entries = await readdir(dir, { withFileTypes: true })
+  const results: any[] = []
+  for (const entry of entries) {
+    const fullPath = join(dir, entry.name)
+    if (entry.isDirectory()) {
+      results.push(...await scanDir(fullPath, base))
+    } else if (entry.name.endsWith('.md')) {
+      const s = await stat(fullPath)
+      const relPath = relative(base, fullPath)
+      const folder = relative(base, dir) || null
+      results.push({
+        name: entry.name,
+        path: relPath,
+        filename: entry.name,
+        folder,
+        size: s.size,
+        modified: s.mtime.toISOString(),
+        modifiedAt: s.mtime.toISOString(),
+      })
+    }
+  }
+  return results
+}
 
 export default defineEventHandler(async (event) => {
   const id = getRouterParam(event, 'id')
@@ -17,12 +42,7 @@ export default defineEventHandler(async (event) => {
   if (!project.workspace || !existsSync(project.workspace)) return { docs: [] }
 
   try {
-    const files = await readdir(project.workspace)
-    const docs = []
-    for (const f of files.filter(f => f.endsWith('.md'))) {
-      const s = await stat(join(project.workspace, f))
-      docs.push({ name: f, path: f, filename: f, size: s.size, modified: s.mtime.toISOString(), modifiedAt: s.mtime.toISOString() })
-    }
+    const docs = await scanDir(project.workspace, project.workspace)
     return { docs }
   } catch {
     return { docs: [] }

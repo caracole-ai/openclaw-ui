@@ -139,21 +139,6 @@ function onVerified(result: SkillVerification) {
   emit('verified', result)
 }
 
-// --- Date formatting (matches project convention) ---
-function formatDate(timestamp: string): string {
-  if (!timestamp) return 'N/A'
-
-  const date = new Date(timestamp)
-  const now = new Date()
-  const diffMs = now.getTime() - date.getTime()
-  const diffHours = Math.floor(diffMs / (1000 * 60 * 60))
-
-  if (diffHours < 1) return "A l'instant"
-  if (diffHours < 24) return `Il y a ${diffHours}h`
-
-  const diffDays = Math.floor(diffHours / 24)
-  if (diffDays < 7) return `Il y a ${diffDays}j`
-
-  return date.toLocaleDateString('fr-FR', { day: 'numeric', month: 'short' })
-}
+// formatDate → use formatAgeSince from utils/format.ts (auto-imported)
+const formatDate = formatAgeSince
 </script>

@@ -104,6 +104,15 @@ const stateConfig = computed(() => {
 })
 
 const progressPercent = computed(() => {
+  // Use phases completion if available, else fall back to DB progress field
+  const phases = props.project.phases
+  if (phases && phases.length > 0) {
+    const completed = phases.filter((p: any) => p.status === 'completed').length
+    return Math.round((completed / phases.length) * 100)
+  }
+  if (props.project.progress != null && props.project.progress > 0) {
+    return props.project.progress
+  }
   return Math.round((stateConfig.value.index / 6) * 100)
 })
 
@@ -122,19 +131,6 @@ const borderClass = computed(() => {
   }
 })
 
-function formatDate(timestamp: string): string {
-  if (!timestamp) return 'N/A'
-  const date = new Date(timestamp)
-  const now = new Date()
-  const diffMs = now.getTime() - date.getTime()
-  const diffHours = Math.floor(diffMs / (1000 * 60 * 60))
-
-  if (diffHours < 1) return 'À l\'instant'
-  if (diffHours < 24) return `Il y a ${diffHours}h`
-
-  const diffDays = Math.floor(diffHours / 24)
-  if (diffDays < 7) return `Il y a ${diffDays}j`
-
-  return date.toLocaleDateString('fr-FR', { day: 'numeric', month: 'short' })
-}
+// formatDate → use formatAgeSince from utils/format.ts (auto-imported)
+const formatDate = formatAgeSince
 </script>

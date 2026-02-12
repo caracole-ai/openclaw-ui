@@ -139,29 +139,8 @@ const teamBadgeClass = computed(() => {
   }
 })
 
-function formatModel(model: string): string {
-  if (model.includes('opus')) return 'Opus'
-  if (model.includes('sonnet')) return 'Sonnet'
-  if (model.includes('haiku')) return 'Haiku'
-  if (model.includes('gpt-4')) return 'GPT-4'
-  return model.split('/').pop()?.split('-')[0] ?? model
-}
+// formatModel is auto-imported from utils/format.ts
 
-function formatAge(timestamp: string | null): string {
-  if (!timestamp) return 'Jamais'
-
-  const diffMs = Date.now() - new Date(timestamp).getTime()
-  const diffSeconds = Math.floor(diffMs / 1000)
-  const diffMinutes = Math.floor(diffSeconds / 60)
-  const diffHours = Math.floor(diffMinutes / 60)
-
-  if (diffSeconds < 60) return 'À l\'instant'
-  if (diffMinutes < 60) return `Il y a ${diffMinutes}m`
-  if (diffHours < 24) return `Il y a ${diffHours}h`
-
-  return new Date(timestamp).toLocaleDateString('fr-FR', {
-    day: 'numeric',
-    month: 'short'
-  })
-}
+// formatAgeSince is auto-imported from utils/format.ts
+const formatAge = formatAgeSince
 </script>

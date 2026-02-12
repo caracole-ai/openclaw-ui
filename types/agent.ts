@@ -5,7 +5,6 @@ export type AgentRole = 'orchestrator' | 'architect' | 'developer' | 'config' | 
 export interface AgentMattermost {
   username: string
   userId: string | null
-  token: string | null
 }
 
 export interface AgentPermissions {

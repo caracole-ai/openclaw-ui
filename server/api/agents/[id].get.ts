@@ -6,6 +6,8 @@ import { readFile } from 'fs/promises'
 import { existsSync, readdirSync } from 'fs'
 import { join } from 'path'
 import { getDb, getLiveStats, getLiveSessions } from '~/server/utils/db'
+import { serializeAgent } from '~/server/utils/serializers'
+import type { DbAgent, DbAgentSkill } from '~/server/types/db'
 
 const WORKSPACE_FILES = [
   'SOUL.md', 'IDENTITY.md', 'USER.md', 'AGENTS.md',
@@ -17,12 +19,12 @@ export default defineEventHandler(async (event) => {
   if (!agentId) throw createError({ statusCode: 400, statusMessage: 'Agent ID requis' })
 
   const db = getDb()
-  const agent = db.prepare('SELECT * FROM agents WHERE id = ?').get(agentId) as any
+  const agent = db.prepare('SELECT * FROM agents WHERE id = ?').get(agentId) as DbAgent | undefined
   if (!agent) throw createError({ statusCode: 404, statusMessage: `Agent '${agentId}' non trouvé` })
 
   // Skills
-  const skills = db.prepare('SELECT skill_id FROM agent_skills WHERE agent_id = ?')
-    .all(agentId).map((r: any) => r.skill_id)
+  const skills = (db.prepare('SELECT skill_id FROM agent_skills WHERE agent_id = ?')
+    .all(agentId) as DbAgentSkill[]).map(r => r.skill_id)
 
   // Projects
   const projects = db.prepare(`
@@ -58,21 +60,9 @@ export default defineEventHandler(async (event) => {
   const sessions = getLiveSessions(agentId)
 
   return {
-    id: agent.id,
-    name: agent.name,
-    emoji: agent.emoji,
-    team: agent.team,
-    role: agent.role,
-    model: agent.model,
-    workspace: agent.workspace,
-    status: agent.status,
-    skills,
-    mattermost: { username: agent.mm_username, userId: agent.mm_user_id, token: agent.mm_token },
-    permissions: agent.permissions ? JSON.parse(agent.permissions) : null,
-    createdAt: agent.created_at,
+    ...serializeAgent(agent, { skills, live }),
     projects,
     files,
     sessions,
-    ...live,
   }
 })

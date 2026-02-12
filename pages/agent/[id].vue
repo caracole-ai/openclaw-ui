@@ -287,39 +287,7 @@ const percentClass = computed(() => {
   return 'text-gray-900'
 })
 
-function formatTokens(tokens: number): string {
-  if (!tokens) return '0'
-  if (tokens >= 1_000_000) return `${(tokens / 1_000_000).toFixed(1)}M`
-  if (tokens >= 1_000) return `${(tokens / 1_000).toFixed(1)}k`
-  return tokens.toString()
-}
-
-function formatModel(model: string | null): string {
-  if (!model) return '-'
-  if (model.includes('opus')) return 'Opus'
-  if (model.includes('sonnet')) return 'Sonnet'
-  if (model.includes('haiku')) return 'Haiku'
-  return model.split('/').pop()?.split('-')[0] ?? model
-}
-
-function formatAge(ageMs: number): string {
-  const seconds = Math.floor(ageMs / 1000)
-  const minutes = Math.floor(seconds / 60)
-  const hours = Math.floor(minutes / 60)
-  
-  if (seconds < 60) return `${seconds}s`
-  if (minutes < 60) return `${minutes}m`
-  return `${hours}h`
-}
-
-function formatSessionKey(key: string): string {
-  // agent:amelia:mattermost:amelia:dm:xxx → mattermost / dm
-  // agent:amelia:main → main session
-  const parts = key.split(':')
-  if (parts.length <= 3) return parts[parts.length - 1] || key
-  // Skip agent:<id>: prefix
-  return parts.slice(2).join(' / ')
-}
+// formatTokens, formatModel, formatAge, formatSessionKey are auto-imported from utils/format.ts
 
 function getAgentRole(project: any): string {
   // Check team first
