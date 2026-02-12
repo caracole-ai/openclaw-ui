@@ -230,6 +230,14 @@ import { useWebSocket } from '~/composables/useWebSocket'
 const { agents: agentsList, fetchAgents } = useAgents()
 const { status: wsStatus } = useWebSocket()
 
+// Live stats from gateway session stores
+const liveData = ref<{ totalTokens: number; nearLimit: number } | null>(null)
+async function fetchLiveStats() {
+  try {
+    liveData.value = await $fetch('/api/agents/live')
+  } catch {}
+}
+
 interface Stats {
   online: number
   idle: number
@@ -367,15 +375,15 @@ function updateLiveCountdown() {
   liveHoursUntilReset.value = Math.max(0, diffMs / (1000 * 60 * 60))
 }
 
-// Sync stats from useAgents composable (v3)
-watch(agentsList, (list) => {
+// Sync stats: agent status from composable, tokens from live gateway data
+watch([agentsList, liveData], ([list, live]) => {
   if (!list.length) return
   stats.value = {
     online: list.filter((a: any) => a.status === 'active').length,
     idle: list.filter((a: any) => a.status === 'idle').length,
     offline: list.filter((a: any) => a.status === 'offline' || a.status === 'error').length,
-    totalTokens: list.reduce((sum: number, a: any) => sum + (a.totalTokens || 0), 0),
-    nearLimit: list.filter((a: any) => (a.maxPercentUsed || 0) >= 80).length
+    totalTokens: live?.totalTokens ?? 0,
+    nearLimit: live?.nearLimit ?? 0,
   }
   lastRefresh.value = new Date()
 }, { immediate: true })
@@ -383,8 +391,7 @@ watch(agentsList, (list) => {
 async function refresh() {
   pending.value = true
   try {
-    await fetchAgents()
-    // refreshThomas disabled — endpoint not available yet
+    await Promise.all([fetchAgents(), fetchLiveStats()])
   } catch (e) {
     console.error('[AppHeader] Refresh error:', e)
   } finally {
