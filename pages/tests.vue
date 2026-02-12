@@ -56,26 +56,26 @@
     <!-- Unit Test Suites -->
     <div v-if="suites.length" class="space-y-6 mb-10">
       <h2 class="text-lg font-semibold text-gray-900">📦 Tests unitaires</h2>
-      <div v-for="suite in suites" :key="suite.id" class="bg-white rounded-lg border overflow-hidden">
+      <div v-for="suite in suites" :key="suite.name" class="bg-white rounded-lg border overflow-hidden">
         <button
-          @click="toggleSuite(suite.id)"
+          @click="toggleSuite(suite.name)"
           class="w-full flex items-center justify-between px-5 py-4 hover:bg-gray-50 transition-colors"
         >
           <div class="flex items-center gap-3">
-            <span class="text-xl">{{ suite.icon }}</span>
+            <span class="text-xl">{{ suiteIcon(suite.name) }}</span>
             <span class="font-medium text-gray-900">{{ suite.name }}</span>
             <span class="text-xs px-2 py-0.5 rounded-full font-medium" :class="suiteBadgeClass(suite)">
-              {{ suitePassCount(suite) }}/{{ suite.tests.length }}
+              {{ suitePassCount(suite) }}/{{ (suite.results || []).length }}
             </span>
           </div>
-          <svg class="w-5 h-5 text-gray-400 transition-transform" :class="{ 'rotate-180': openSuites.has(suite.id) }" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <svg class="w-5 h-5 text-gray-400 transition-transform" :class="{ 'rotate-180': openSuites.has(suite.name) }" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" />
           </svg>
         </button>
-        <div v-if="openSuites.has(suite.id)" class="border-t divide-y">
+        <div v-if="openSuites.has(suite.name)" class="border-t divide-y">
           <div
-            v-for="test in suite.tests"
-            :key="test.id"
+            v-for="test in suite.results"
+            :key="test.name"
             class="flex items-center justify-between px-5 py-3 text-sm"
             :class="test.status === 'fail' ? 'bg-red-50' : ''"
           >
@@ -156,19 +156,17 @@ import { ref, computed } from 'vue'
 useHead({ title: 'Tests - OpenClaw' })
 
 interface TestResult {
-  id: string
-  suite: string
   name: string
-  status: 'pass' | 'fail' | 'skip'
+  status: 'pass' | 'fail' | 'warn' | 'skip'
   message?: string
   durationMs?: number
 }
 
 interface Suite {
-  id: string
   name: string
-  icon: string
-  tests: TestResult[]
+  results: TestResult[]
+  passed: number
+  failed: number
 }
 
 interface E2EResult {
@@ -188,10 +186,10 @@ const openSuites = ref(new Set<string>())
 const e2eOpen = ref(false)
 
 const summary = computed(() => {
-  const unitTests = suites.value.flatMap(s => s.tests)
+  const unitTests = suites.value.flatMap(s => s.results || [])
   const allPass = unitTests.filter(t => t.status === 'pass').length + e2eResults.value.filter(r => r.status === 'pass').length
   const allFail = unitTests.filter(t => t.status === 'fail').length + e2eResults.value.filter(r => r.status === 'fail').length
-  const allSkip = unitTests.filter(t => t.status === 'skip').length
+  const allSkip = unitTests.filter(t => t.status === 'skip' || t.status === 'warn').length
   const total = unitTests.length + e2eResults.value.length
   if (total === 0) return null
   return { total, pass: allPass, fail: allFail, skip: allSkip }
@@ -218,8 +216,8 @@ async function runAll() {
 
     // Auto-open suites with failures
     for (const s of unitRes.suites) {
-      if (s.tests.some(t => t.status === 'fail')) {
-        openSuites.value.add(s.id)
+      if ((s.results || []).some(t => t.status === 'fail')) {
+        openSuites.value.add(s.name)
       }
     }
 
@@ -247,12 +245,19 @@ function toggleSuite(id: string) {
 }
 
 function suitePassCount(suite: Suite) {
-  return suite.tests.filter(t => t.status === 'pass').length
+  return (suite.results || []).filter(t => t.status === 'pass').length
 }
 
 function suiteBadgeClass(suite: Suite) {
-  const allPass = suite.tests.every(t => t.status !== 'fail')
+  const allPass = (suite.results || []).every(t => t.status !== 'fail')
   return allPass ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'
+}
+
+function suiteIcon(name: string) {
+  if (name.includes('Integrity')) return '🔒'
+  if (name.includes('Cross')) return '🔗'
+  if (name.includes('Schema')) return '🏗️'
+  return '📦'
 }
 
 function statusIcon(status: string) {
