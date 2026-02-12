@@ -135,36 +135,19 @@ watch([agentsList, liveData], ([list, live]) => {
 }, { immediate: true })
 
 // --- Session countdown (5h sessions) ---
-// Schedule: sessions reset every 5h. Next reset times from now.
+// Anchor: 2026-02-12 19:00 Paris, repeating every 5h
 const SESSION_DURATION_H = 5
-// Reset schedule: 00:00, 05:00, 10:00, 15:00, 20:00 (Paris)
-const RESET_HOURS = [0, 5, 10, 15, 20]
+const SESSION_DURATION_MS = SESSION_DURATION_H * 60 * 60 * 1000
+// Anchor in UTC: 2026-02-12 19:00 Paris = 2026-02-12 18:00 UTC (CET = UTC+1)
+const ANCHOR_MS = Date.UTC(2026, 1, 12, 18, 0, 0) // Feb 12, 2026 18:00 UTC = 19:00 Paris
 
 const now = ref(Date.now())
 
 function getNextReset(): Date {
-  // Get current time in Paris using Intl to extract hour/minute reliably
-  const formatter = new Intl.DateTimeFormat('en-GB', {
-    timeZone: 'Europe/Paris',
-    hour: 'numeric', minute: 'numeric', year: 'numeric', month: 'numeric', day: 'numeric',
-    hour12: false,
-  })
-  const parts = formatter.formatToParts(new Date(now.value))
-  const get = (t: string) => parseInt(parts.find(p => p.type === t)?.value || '0')
-  const currentDecimal = get('hour') + get('minute') / 60
-
-  // Find next reset hour in Paris time
-  let nextH = RESET_HOURS.find(h => h > currentDecimal)
-  const isNextDay = nextH === undefined
-  if (isNextDay) nextH = RESET_HOURS[0] // tomorrow 00:00
-
-  // Calculate ms until next reset
-  const hoursUntil = isNextDay
-    ? (24 - currentDecimal) + nextH!
-    : nextH! - currentDecimal
-  const msUntil = hoursUntil * 60 * 60 * 1000
-
-  return new Date(now.value + msUntil)
+  const elapsed = now.value - ANCHOR_MS
+  const cyclesPassed = Math.floor(elapsed / SESSION_DURATION_MS)
+  const nextReset = ANCHOR_MS + (cyclesPassed + 1) * SESSION_DURATION_MS
+  return new Date(nextReset)
 }
 
 const nextReset = computed(() => getNextReset())
