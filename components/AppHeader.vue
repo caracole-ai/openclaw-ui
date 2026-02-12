@@ -13,6 +13,7 @@
             <NuxtLink to="/projets" class="px-3 py-1.5 text-sm text-gray-600 hover:text-gray-900 hover:bg-gray-100 rounded-lg transition-colors" active-class="bg-gray-100 text-gray-900 font-medium">Projets</NuxtLink>
             <NuxtLink to="/skills" class="px-3 py-1.5 text-sm text-gray-600 hover:text-gray-900 hover:bg-gray-100 rounded-lg transition-colors" active-class="bg-gray-100 text-gray-900 font-medium">Skills</NuxtLink>
             <NuxtLink to="/tokens" class="px-3 py-1.5 text-sm text-gray-600 hover:text-gray-900 hover:bg-gray-100 rounded-lg transition-colors" active-class="bg-gray-100 text-gray-900 font-medium">Tokens</NuxtLink>
+            <NuxtLink to="/tests" class="px-3 py-1.5 text-sm text-gray-600 hover:text-gray-900 hover:bg-gray-100 rounded-lg transition-colors" active-class="bg-gray-100 text-gray-900 font-medium">🧪 Tests</NuxtLink>
           </nav>
           <!-- WebSocket status indicator -->
           <span 
@@ -197,15 +198,6 @@
           <span class="text-xs text-gray-500">
             {{ lastRefreshText }}
           </span>
-
-          <!-- Bouton tests -->
-          <NuxtLink 
-            to="/tests"
-            class="p-2 text-gray-500 hover:text-gray-700 hover:bg-gray-100 rounded-lg transition-colors"
-            title="Tests"
-          >
-            🧪
-          </NuxtLink>
 
           <!-- Bouton refresh -->
           <button 
