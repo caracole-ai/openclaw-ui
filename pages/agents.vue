@@ -15,11 +15,11 @@
 </template>
 
 <script setup lang="ts">
-import { useAgentsStatus } from '~/composables/useAgentsStatus'
+import { useAgents } from '~/composables/useAgents'
 
 useHead({
   title: 'Agents - OpenClaw Dashboard'
 })
 
-const { agents } = useAgentsStatus()
+const { agents } = useAgents()
 </script>

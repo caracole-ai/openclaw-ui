@@ -199,16 +199,16 @@
 
 <script setup lang="ts">
 import { computed, onMounted, onBeforeUnmount } from 'vue'
-import { useAgentsStatus } from '~/composables/useAgentsStatus'
-import { useProjectsData } from '~/composables/useProjectsData'
+import { useAgents } from '~/composables/useAgents'
+import { useProjects } from '~/composables/useProjects'
 
 useHead({
   title: 'OpenClaw - Dashboard'
 })
 
 // Use real composables for reactive data
-const { agents, pending: agentsPending } = useAgentsStatus()
-const { projects, loading: projectsLoading, fetchProjects } = useProjectsData()
+const { agents, loading: agentsPending } = useAgents()
+const { projects, loading: projectsLoading, fetchProjects } = useProjects()
 
 // Combined loading state
 const loading = computed(() => agentsPending.value || projectsLoading.value)

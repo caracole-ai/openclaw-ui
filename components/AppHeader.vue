@@ -17,8 +17,13 @@
           <!-- WebSocket status indicator -->
           <span 
             class="w-2.5 h-2.5 rounded-full flex-shrink-0"
-            :class="wsStatus === 'connected' ? 'bg-green-500' : 'bg-red-500'"
-            :title="wsStatus === 'connected' ? 'WebSocket connecté' : 'WebSocket déconnecté'"
+            :class="{
+              'bg-green-500': wsStatus === 'connected',
+              'bg-yellow-500 animate-pulse': wsStatus === 'connecting',
+              'bg-gray-400': wsStatus === 'disconnected',
+              'bg-red-500': wsStatus === 'error'
+            }"
+            :title="`WebSocket: ${wsStatus}`"
           ></span>
         </div>
 
@@ -169,7 +174,7 @@
 
             <!-- Refresh button -->
             <button 
-              @click.stop="refreshThomas"
+              @click.stop="refresh"
               class="mt-3 w-full py-2 text-xs text-gray-600 hover:text-gray-900 hover:bg-gray-100 rounded-lg transition-colors"
             >
               🔄 Rafraîchir
@@ -387,7 +392,7 @@ async function refresh() {
   pending.value = true
   try {
     await fetchAgents()
-    await refreshThomas()
+    // refreshThomas disabled — endpoint not available yet
   } catch (e) {
     console.error('[AppHeader] Refresh error:', e)
   } finally {
@@ -396,27 +401,8 @@ async function refresh() {
 }
 
 async function refreshThomas() {
-  try {
-    const statusData = await $fetch('/api/thomas/status')
-    
-    thomas.value = {
-      version: statusData.version || '3.0',
-      nextReset: statusData.nextReset || new Date().toISOString(),
-      hoursUntilReset: statusData.hoursUntilReset || 0,
-      schedule: statusData.schedule || ['00:00', '05:00', '10:00', '15:00', '20:00'],
-      percent: statusData.percent || 0,
-      tokensUsed: statusData.tokensUsed || 0,
-      estimatedMax: statusData.estimatedMax || 50_000_000,
-      health: statusData.health || 'green',
-      pausedProjects: statusData.pausedProjects || [],
-      pausedCount: statusData.pausedCount || 0,
-      lastCalibration: statusData.lastCalibration || null
-    }
-    
-    updateLiveCountdown()
-  } catch (e) {
-    console.error('[AppHeader] Thomas refresh error:', e)
-  }
+  // TODO: implement when thomas/status endpoint is available
+  console.log('[AppHeader] refreshThomas skipped — no endpoint yet')
 }
 
 function formatTokens(tokens: number): string {

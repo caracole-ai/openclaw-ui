@@ -1,65 +1,59 @@
-import { ref, onUnmounted } from 'vue'
+import { ref } from 'vue'
 import type { WSEventType, WSEvent } from '~/types/websocket'
 
 type EventHandler<T = any> = (data: T) => void
 
-export function useWebSocket() {
-  const status = ref<'connecting' | 'connected' | 'disconnected' | 'error'>('disconnected')
-  const handlers = new Map<WSEventType, Set<EventHandler>>()
+// Singleton state
+const status = ref<'connecting' | 'connected' | 'disconnected' | 'error'>('disconnected')
+const handlers = new Map<WSEventType, Set<EventHandler>>()
+let ws: WebSocket | null = null
+let attempted = false
 
-  let ws: WebSocket | null = null
-  let reconnectTimer: ReturnType<typeof setTimeout> | null = null
-  let reconnectDelay = 1000
-  const MAX_DELAY = 30000
+// Set to true to enable WebSocket connection (requires a real WS backend)
+const WS_ENABLED = false
 
-  function connect() {
-    if (import.meta.server) return
+function connect() {
+  if (!WS_ENABLED) return
+  if (import.meta.server) return
+  if (attempted) return
+  if (ws?.readyState === WebSocket.OPEN || ws?.readyState === WebSocket.CONNECTING) return
 
-    status.value = 'connecting'
+  attempted = true
+  status.value = 'connecting'
 
-    try {
-      const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:'
-      ws = new WebSocket(`${protocol}//${window.location.hostname}:8080/api/events`)
+  try {
+    const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:'
+    const wsPort = import.meta.env.VITE_WS_PORT || window.location.port || '8080'
+    ws = new WebSocket(`${protocol}//${window.location.hostname}:${wsPort}/api/events`)
 
-      ws.onopen = () => {
-        status.value = 'connected'
-        reconnectDelay = 1000
-      }
-
-      ws.onmessage = (event) => {
-        try {
-          const msg: WSEvent = JSON.parse(event.data)
-          const eventHandlers = handlers.get(msg.type)
-          if (eventHandlers) {
-            eventHandlers.forEach(h => h(msg.data))
-          }
-        } catch {}
-      }
-
-      ws.onclose = () => {
-        status.value = 'disconnected'
-        scheduleReconnect()
-      }
-
-      ws.onerror = () => {
-        status.value = 'error'
-        ws?.close()
-      }
-    } catch {
-      status.value = 'error'
-      scheduleReconnect()
+    ws.onopen = () => {
+      status.value = 'connected'
     }
-  }
 
-  function scheduleReconnect() {
-    if (reconnectTimer) return
-    reconnectTimer = setTimeout(() => {
-      reconnectTimer = null
-      reconnectDelay = Math.min(reconnectDelay * 2, MAX_DELAY)
-      connect()
-    }, reconnectDelay)
-  }
+    ws.onmessage = (event) => {
+      try {
+        const msg: WSEvent = JSON.parse(event.data)
+        const eventHandlers = handlers.get(msg.type)
+        if (eventHandlers) {
+          eventHandlers.forEach(h => h(msg.data))
+        }
+      } catch {}
+    }
 
+    ws.onclose = () => {
+      ws = null
+      status.value = 'disconnected'
+    }
+
+    ws.onerror = () => {
+      ws?.close()
+    }
+  } catch {
+    status.value = 'error'
+  }
+}
+
+export function useWebSocket() {
   function on<T = any>(event: WSEventType, handler: EventHandler<T>) {
     if (!handlers.has(event)) handlers.set(event, new Set())
     handlers.get(event)!.add(handler as EventHandler)
@@ -70,23 +64,15 @@ export function useWebSocket() {
   }
 
   function disconnect() {
-    if (reconnectTimer) {
-      clearTimeout(reconnectTimer)
-      reconnectTimer = null
-    }
     ws?.close()
     ws = null
     status.value = 'disconnected'
   }
 
-  // Auto-connect on client
-  if (!import.meta.server) {
+  // Auto-connect once on first client-side use
+  if (!import.meta.server && !attempted && WS_ENABLED) {
     connect()
   }
-
-  onUnmounted(() => {
-    disconnect()
-  })
 
   return { status, on, off, disconnect, connect }
 }

@@ -17,26 +17,27 @@ export const KANBAN_COLUMNS: KanbanColumn[] = [
   { state: 'done', label: 'Done', color: '#059669' },
 ]
 
-export function useProjects() {
-  const projects = ref<Project[]>([])
-  const loading = ref(false)
-  const error = ref<string | null>(null)
+// Singleton state
+const projects = ref<Project[]>([])
+const loading = ref(false)
+const error = ref<string | null>(null)
+let fetched = false
 
-  const { on } = useWebSocket()
-
-  async function fetchProjects() {
-    loading.value = true
-    error.value = null
-    try {
-      const data = await $fetch<{ projects: Project[] }>('/api/sources/projects')
-      projects.value = data.projects || []
-    } catch (err: any) {
-      error.value = err.message || 'Erreur chargement projets'
-    } finally {
-      loading.value = false
-    }
+async function fetchProjects() {
+  loading.value = true
+  error.value = null
+  try {
+    const data = await $fetch<{ projects: Project[] }>('/api/sources/projects')
+    projects.value = data.projects || []
+    fetched = true
+  } catch (err: any) {
+    error.value = err.message || 'Erreur chargement projets'
+  } finally {
+    loading.value = false
   }
+}
 
+export function useProjects() {
   function getProject(id: string): Project | undefined {
     return projects.value.find(p => p.id === id)
   }
@@ -53,16 +54,18 @@ export function useProjects() {
     return map
   })
 
-  on('project:stateChanged', (data: { id: string; state: ProjectState }) => {
-    const p = projects.value.find(p => p.id === data.id)
-    if (p) p.state = data.state
-  })
+  if (!import.meta.server && !fetched) {
+    const { on } = useWebSocket()
+    on('project:stateChanged', (data: { id: string; state: ProjectState }) => {
+      const p = projects.value.find(p => p.id === data.id)
+      if (p) p.state = data.state
+    })
+    on('project:created', (data: Project) => {
+      projects.value.push(data)
+    })
 
-  on('project:created', (data: Project) => {
-    projects.value.push(data)
-  })
-
-  fetchProjects()
+    fetchProjects()
+  }
 
   return { projects, projectsByState, getProject, fetchProjects, loading, error, KANBAN_COLUMNS }
 }
