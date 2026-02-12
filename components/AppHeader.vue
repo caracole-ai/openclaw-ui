@@ -8,6 +8,18 @@
             <span class="text-2xl">🦞</span>
             <span class="text-xl font-bold text-gray-900">OpenClaw</span>
           </NuxtLink>
+          <nav class="hidden sm:flex items-center gap-1">
+            <NuxtLink to="/agents" class="px-3 py-1.5 text-sm text-gray-600 hover:text-gray-900 hover:bg-gray-100 rounded-lg transition-colors" active-class="bg-gray-100 text-gray-900 font-medium">Agents</NuxtLink>
+            <NuxtLink to="/projets" class="px-3 py-1.5 text-sm text-gray-600 hover:text-gray-900 hover:bg-gray-100 rounded-lg transition-colors" active-class="bg-gray-100 text-gray-900 font-medium">Projets</NuxtLink>
+            <NuxtLink to="/skills" class="px-3 py-1.5 text-sm text-gray-600 hover:text-gray-900 hover:bg-gray-100 rounded-lg transition-colors" active-class="bg-gray-100 text-gray-900 font-medium">Skills</NuxtLink>
+            <NuxtLink to="/tokens" class="px-3 py-1.5 text-sm text-gray-600 hover:text-gray-900 hover:bg-gray-100 rounded-lg transition-colors" active-class="bg-gray-100 text-gray-900 font-medium">Tokens</NuxtLink>
+          </nav>
+          <!-- WebSocket status indicator -->
+          <span 
+            class="w-2.5 h-2.5 rounded-full flex-shrink-0"
+            :class="wsStatus === 'connected' ? 'bg-green-500' : 'bg-red-500'"
+            :title="wsStatus === 'connected' ? 'WebSocket connecté' : 'WebSocket déconnecté'"
+          ></span>
         </div>
 
         <!-- Stats rapides -->
@@ -214,7 +226,12 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted, onUnmounted } from 'vue'
+import { ref, computed, onMounted, onUnmounted, watch } from 'vue'
+import { useAgents } from '~/composables/useAgents'
+import { useWebSocket } from '~/composables/useWebSocket'
+
+const { agents: agentsList, fetchAgents } = useAgents()
+const { status: wsStatus } = useWebSocket()
 
 interface Stats {
   online: number
@@ -353,21 +370,23 @@ function updateLiveCountdown() {
   liveHoursUntilReset.value = Math.max(0, diffMs / (1000 * 60 * 60))
 }
 
+// Sync stats from useAgents composable (v3)
+watch(agentsList, (list) => {
+  if (!list.length) return
+  stats.value = {
+    online: list.filter((a: any) => a.status === 'active').length,
+    idle: list.filter((a: any) => a.status === 'idle').length,
+    offline: list.filter((a: any) => a.status === 'offline' || a.status === 'error').length,
+    totalTokens: list.reduce((sum: number, a: any) => sum + (a.totalTokens || 0), 0),
+    nearLimit: list.filter((a: any) => (a.maxPercentUsed || 0) >= 80).length
+  }
+  lastRefresh.value = new Date()
+}, { immediate: true })
+
 async function refresh() {
   pending.value = true
   try {
-    const data = await $fetch('/api/agents/status')
-    const agents = data.agents || []
-    
-    stats.value = {
-      online: agents.filter(a => a.status === 'online').length,
-      idle: agents.filter(a => a.status === 'idle').length,
-      offline: agents.filter(a => a.status === 'offline').length,
-      totalTokens: agents.reduce((sum, a) => sum + (a.totalTokens || 0), 0),
-      nearLimit: agents.filter(a => (a.maxPercentUsed || 0) >= 80).length
-    }
-    lastRefresh.value = new Date()
-    
+    await fetchAgents()
     await refreshThomas()
   } catch (e) {
     console.error('[AppHeader] Refresh error:', e)

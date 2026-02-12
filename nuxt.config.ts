@@ -14,7 +14,8 @@ export default defineNuxtConfig({
       meta: [
         { name: 'description', content: 'Interface de gestion pour OpenClaw' }
       ]
-    }
+    },
+    pageTransition: { name: 'page', mode: 'out-in' }
   },
   
   runtimeConfig: {

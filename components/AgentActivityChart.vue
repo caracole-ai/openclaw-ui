@@ -6,47 +6,48 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted, watch } from 'vue';
-import { Chart, BarElement, CategoryScale, LinearScale, Tooltip, Legend, BarController } from 'chart.js';
+import { ref, onMounted, watch } from 'vue'
+import { Chart, BarElement, CategoryScale, LinearScale, Tooltip, Legend, BarController } from 'chart.js'
+import type { Agent } from '~/types/agent'
 
-Chart.register(BarElement, CategoryScale, LinearScale, Tooltip, Legend, BarController);
+Chart.register(BarElement, CategoryScale, LinearScale, Tooltip, Legend, BarController)
 
 const props = defineProps<{
-  agents: any[];
-}>();
+  agents: Agent[]
+}>()
 
-const chartCanvas = ref<HTMLCanvasElement | null>(null);
-let chartInstance: Chart | null = null;
+const chartCanvas = ref<HTMLCanvasElement | null>(null)
+let chartInstance: Chart | null = null
 
 const initChart = () => {
-  if (!chartCanvas.value) return;
-  
-  const labels = props.agents.map(a => a.name);
-  const messages = props.agents.map(a => a.metrics.totalMessages);
-  const successRates = props.agents.map(a => a.metrics.successRate);
-  
+  if (!chartCanvas.value) return
+
+  const labels = props.agents.map(a => a.name)
+  const projects = props.agents.map(a => a.projects?.length ?? 0)
+  const skills = props.agents.map(a => a.skills?.length ?? 0)
+
   if (chartInstance) {
-    chartInstance.destroy();
+    chartInstance.destroy()
   }
-  
+
   chartInstance = new Chart(chartCanvas.value, {
     type: 'bar',
     data: {
       labels,
       datasets: [
         {
-          label: 'Messages',
-          data: messages,
+          label: 'Projets',
+          data: projects,
           backgroundColor: '#3b82f6',
           borderRadius: 4,
           yAxisID: 'y'
         },
         {
-          label: 'Taux de succès (%)',
-          data: successRates,
+          label: 'Skills',
+          data: skills,
           backgroundColor: '#10b981',
           borderRadius: 4,
-          yAxisID: 'y1'
+          yAxisID: 'y'
         }
       ]
     },
@@ -59,19 +60,7 @@ const initChart = () => {
           position: 'left',
           title: {
             display: true,
-            text: 'Messages'
-          }
-        },
-        y1: {
-          type: 'linear',
-          position: 'right',
-          title: {
-            display: true,
-            text: 'Taux de succès (%)'
-          },
-          max: 100,
-          grid: {
-            drawOnChartArea: false
+            text: 'Count'
           }
         }
       },
@@ -81,14 +70,14 @@ const initChart = () => {
         }
       }
     }
-  });
-};
+  })
+}
 
 onMounted(() => {
-  initChart();
-});
+  initChart()
+})
 
 watch(() => props.agents, () => {
-  initChart();
-});
+  initChart()
+})
 </script>

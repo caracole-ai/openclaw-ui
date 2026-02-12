@@ -6,45 +6,44 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted, watch } from 'vue';
-import { Chart, ArcElement, Tooltip, Legend, DoughnutController } from 'chart.js';
+import { ref, onMounted, watch } from 'vue'
+import { Chart, ArcElement, Tooltip, Legend, DoughnutController } from 'chart.js'
+import type { Agent } from '~/types/agent'
 
-Chart.register(ArcElement, Tooltip, Legend, DoughnutController);
+Chart.register(ArcElement, Tooltip, Legend, DoughnutController)
 
 const props = defineProps<{
-  agents: any[];
-}>();
+  agents: Agent[]
+}>()
 
-const chartCanvas = ref<HTMLCanvasElement | null>(null);
-let chartInstance: Chart | null = null;
+const chartCanvas = ref<HTMLCanvasElement | null>(null)
+let chartInstance: Chart | null = null
 
 const initChart = () => {
-  if (!chartCanvas.value) return;
-  
+  if (!chartCanvas.value) return
+
   // Compter les agents par rôle
   const roleCounts = props.agents.reduce((acc, agent) => {
-    acc[agent.role] = (acc[agent.role] || 0) + 1;
-    return acc;
-  }, {} as Record<string, number>);
-  
-  const labels = Object.keys(roleCounts);
-  const data = Object.values(roleCounts);
-  
-  const colors = {
+    acc[agent.role] = (acc[agent.role] || 0) + 1
+    return acc
+  }, {} as Record<string, number>)
+
+  const labels = Object.keys(roleCounts)
+  const data = Object.values(roleCounts)
+
+  const colors: Record<string, string> = {
     orchestrator: '#8b5cf6',
-    specialist: '#3b82f6',
-    reviewer: '#10b981',
-    executor: '#f59e0b',
-    monitor: '#6366f1',
-    bridge: '#ec4899'
-  };
-  
-  const backgroundColors = labels.map(label => colors[label as keyof typeof colors] || '#6b7280');
-  
-  if (chartInstance) {
-    chartInstance.destroy();
+    architect: '#3b82f6',
+    developer: '#10b981',
+    config: '#f59e0b',
   }
-  
+
+  const backgroundColors = labels.map(label => colors[label] || '#6b7280')
+
+  if (chartInstance) {
+    chartInstance.destroy()
+  }
+
   chartInstance = new Chart(chartCanvas.value, {
     type: 'doughnut',
     data: {
@@ -70,22 +69,22 @@ const initChart = () => {
         tooltip: {
           callbacks: {
             label: (context) => {
-              const total = (context.dataset.data as number[]).reduce((a, b) => a + b, 0);
-              const percentage = ((context.parsed / total) * 100).toFixed(1);
-              return `${context.label}: ${context.parsed} (${percentage}%)`;
+              const total = (context.dataset.data as number[]).reduce((a, b) => a + b, 0)
+              const percentage = ((context.parsed / total) * 100).toFixed(1)
+              return `${context.label}: ${context.parsed} (${percentage}%)`
             }
           }
         }
       }
     }
-  });
-};
+  })
+}
 
 onMounted(() => {
-  initChart();
-});
+  initChart()
+})
 
 watch(() => props.agents, () => {
-  initChart();
-});
+  initChart()
+})
 </script>

@@ -1,5 +1,5 @@
 <template>
-  <span 
+  <span
     class="inline-flex items-center rounded-full font-medium"
     :class="[badgeClasses, sizeClasses]"
   >
@@ -10,10 +10,10 @@
 
 <script setup lang="ts">
 import { computed } from 'vue'
-import type { AgentStatusType } from '~/types/agents'
+import type { AgentStatus } from '~/types/agent'
 
 const props = withDefaults(defineProps<{
-  status: AgentStatusType
+  status: AgentStatus
   size?: 'sm' | 'md'
 }>(), {
   size: 'md'
@@ -27,18 +27,17 @@ const sizeClasses = computed(() => {
 })
 
 const dotSizeClasses = computed(() => {
-  if (props.size === 'sm') {
-    return 'w-2 h-2'
-  }
   return 'w-2 h-2'
 })
 
 const badgeClasses = computed(() => {
   switch (props.status) {
-    case 'online':
+    case 'active':
       return 'bg-green-100 text-green-800'
     case 'idle':
       return 'bg-yellow-100 text-yellow-800'
+    case 'error':
+      return 'bg-red-100 text-red-800'
     case 'offline':
       return 'bg-gray-100 text-gray-600'
     default:
@@ -48,10 +47,12 @@ const badgeClasses = computed(() => {
 
 const dotClasses = computed(() => {
   switch (props.status) {
-    case 'online':
+    case 'active':
       return 'bg-green-500 animate-pulse'
     case 'idle':
       return 'bg-yellow-500'
+    case 'error':
+      return 'bg-red-500'
     case 'offline':
       return 'bg-gray-400'
     default:
@@ -61,10 +62,12 @@ const dotClasses = computed(() => {
 
 const label = computed(() => {
   switch (props.status) {
-    case 'online':
-      return 'En ligne'
+    case 'active':
+      return 'Actif'
     case 'idle':
       return 'Inactif'
+    case 'error':
+      return 'Erreur'
     case 'offline':
       return 'Hors ligne'
     default:

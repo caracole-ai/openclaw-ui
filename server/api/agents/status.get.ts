@@ -1,13 +1,84 @@
 /**
  * Endpoint /api/agents/status — Dashboard enrichi
- * Expose statut, tokens, contexte, modèle, équipe pour chaque agent
+ * Expose statut, tokens, contexte, modèle, équipe, projets pour chaque agent
  */
 
 import { exec } from 'child_process'
 import { promisify } from 'util'
+import { readFile } from 'fs/promises'
+import { existsSync } from 'fs'
 import type { AgentsStatusResponse, AgentStatus, AgentStatusType, AgentTeam, SessionInfo } from '~/types/agents'
 
 const execAsync = promisify(exec)
+const PROJECTS_FILE = process.env.HOME + '/.openclaw/projects/projects.json'
+
+interface ProjectInfo {
+  id: string
+  name: string
+  role?: string
+  status?: string
+}
+
+// Cache pour les projets (refresh toutes les 30s)
+let projectsCache: { projects: any[], timestamp: number } | null = null
+const PROJECTS_CACHE_TTL = 30000
+
+async function getProjects(): Promise<any[]> {
+  const now = Date.now()
+  if (projectsCache && (now - projectsCache.timestamp) < PROJECTS_CACHE_TTL) {
+    return projectsCache.projects
+  }
+
+  try {
+    if (!existsSync(PROJECTS_FILE)) return []
+    const data = await readFile(PROJECTS_FILE, 'utf-8')
+    const parsed = JSON.parse(data)
+    projectsCache = { projects: parsed.projects || [], timestamp: now }
+    return projectsCache.projects
+  } catch (e) {
+    return []
+  }
+}
+
+function getAgentProjects(agentId: string, projects: any[]): ProjectInfo[] {
+  return projects
+    .filter(p => {
+      const inTeam = p.team?.some((t: any) => t.agent === agentId)
+      const inAssignees = p.assignees?.includes(agentId)
+      const isOwner = p.owner === agentId
+      return inTeam || inAssignees || isOwner
+    })
+    .map(p => {
+      const teamMember = p.team?.find((t: any) => t.agent === agentId)
+      return {
+        id: p.id,
+        name: p.name,
+        role: teamMember?.role || (p.owner === agentId ? 'owner' : 'assigné'),
+        status: p.status
+      }
+    })
+}
+
+// Map channelId to project
+function getProjectByChannelId(channelId: string, projects: any[]): ProjectInfo | null {
+  const project = projects.find(p => p.channelId === channelId)
+  if (!project) return null
+  return {
+    id: project.id,
+    name: project.name,
+    status: project.status
+  }
+}
+
+// Extract channelId from session key
+function extractChannelId(key: string): string | null {
+  // key format: "agent:xxx:mattermost:channel:yyy"
+  const parts = key.split(':')
+  if (parts.length >= 5 && parts[2] === 'mattermost' && parts[3] === 'channel') {
+    return parts[4]
+  }
+  return null
+}
 
 // Config Mattermost
 const MATTERMOST_URL = process.env.MATTERMOST_URL || 'http://localhost:8065'
@@ -101,6 +172,9 @@ export default defineEventHandler(async (): Promise<AgentsStatusResponse> => {
     const { stdout } = await execAsync('openclaw status --json')
     const data = JSON.parse(stdout)
 
+    // Load projects for enrichment
+    const projects = await getProjects()
+
     // Grouper les sessions par agent
     const sessionsByAgent = new Map<string, any[]>()
     for (const session of (data.sessions?.recent ?? [])) {
@@ -140,18 +214,27 @@ export default defineEventHandler(async (): Promise<AgentsStatusResponse> => {
       const workspacePath = agentConfig.workspaceDir || ''
       const team = deriveTeamFromWorkspace(workspacePath)
 
-      // Sessions détaillées avec résolution des noms
+      // Sessions détaillées avec résolution des noms et projets
       const sessions: SessionInfo[] = await Promise.all(
-        agentSessions.map(async (s) => ({
-          sessionId: s.sessionId,
-          key: s.key ?? '',
-          context: await parseContext(s.key ?? ''),
-          totalTokens: s.totalTokens ?? 0,
-          percentUsed: s.percentUsed ?? 0,
-          model: s.model ?? 'unknown',
-          ageMs: s.age ?? 0
-        }))
+        agentSessions.map(async (s) => {
+          const channelId = extractChannelId(s.key ?? '')
+          const project = channelId ? getProjectByChannelId(channelId, projects) : null
+          
+          return {
+            sessionId: s.sessionId,
+            key: s.key ?? '',
+            context: await parseContext(s.key ?? ''),
+            totalTokens: s.totalTokens ?? 0,
+            percentUsed: s.percentUsed ?? 0,
+            model: s.model ?? 'unknown',
+            ageMs: s.age ?? 0,
+            project: project || undefined
+          }
+        })
       )
+
+      // Get projects for this agent
+      const agentProjects = getAgentProjects(agentId, projects)
 
       agents.push({
         id: agentId,
@@ -169,7 +252,8 @@ export default defineEventHandler(async (): Promise<AgentsStatusResponse> => {
         totalTokens,
         model: mostRecent?.model ?? null,
         maxPercentUsed,
-        sessions
+        sessions,
+        projects: agentProjects
       })
     }
 

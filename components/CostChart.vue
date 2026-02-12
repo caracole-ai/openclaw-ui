@@ -11,43 +11,46 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted, watch, computed } from 'vue';
-import { Chart, ArcElement, Tooltip, Legend, DoughnutController } from 'chart.js';
+import { ref, onMounted, watch, computed } from 'vue'
+import { Chart, ArcElement, Tooltip, Legend, DoughnutController } from 'chart.js'
+import { useTokens } from '~/composables/useTokens'
 
-Chart.register(ArcElement, Tooltip, Legend, DoughnutController);
+Chart.register(ArcElement, Tooltip, Legend, DoughnutController)
 
-const props = defineProps<{
-  agents: any[];
-}>();
+const { summary } = useTokens()
 
-const chartCanvas = ref<HTMLCanvasElement | null>(null);
-let chartInstance: Chart | null = null;
+const chartCanvas = ref<HTMLCanvasElement | null>(null)
+let chartInstance: Chart | null = null
+
+const agentCosts = computed(() => {
+  if (!summary.value?.topAgents) return []
+  return summary.value.topAgents
+})
 
 const totalCost = computed(() => {
-  return props.agents.reduce((sum, a) => sum + (a.metrics.cost || 0), 0);
-});
+  return agentCosts.value.reduce((sum, a) => sum + (a.cost || 0), 0)
+})
 
 const initChart = () => {
-  if (!chartCanvas.value) return;
-  
-  const labels = props.agents.map(a => a.name);
-  const costs = props.agents.map(a => a.metrics.cost || 0);
-  
-  // Couleurs funky
+  if (!chartCanvas.value || !agentCosts.value.length) return
+
+  const labels = agentCosts.value.map(a => a.agentId)
+  const costs = agentCosts.value.map(a => a.cost || 0)
+
   const colors = [
-    '#8b5cf6', // purple
-    '#3b82f6', // blue
-    '#10b981', // green
-    '#f59e0b', // amber
-    '#ef4444', // red
-    '#ec4899', // pink
-    '#6366f1', // indigo
-  ];
-  
+    '#8b5cf6',
+    '#3b82f6',
+    '#10b981',
+    '#f59e0b',
+    '#ef4444',
+    '#ec4899',
+    '#6366f1',
+  ]
+
   if (chartInstance) {
-    chartInstance.destroy();
+    chartInstance.destroy()
   }
-  
+
   chartInstance = new Chart(chartCanvas.value, {
     type: 'doughnut',
     data: {
@@ -75,22 +78,23 @@ const initChart = () => {
         tooltip: {
           callbacks: {
             label: (context) => {
-              const cost = context.parsed;
-              const percentage = ((cost / totalCost.value) * 100).toFixed(1);
-              return `${context.label}: $${cost.toFixed(2)} (${percentage}%)`;
+              const cost = context.parsed
+              const total = totalCost.value
+              const percentage = total > 0 ? ((cost / total) * 100).toFixed(1) : '0'
+              return `${context.label}: $${cost.toFixed(2)} (${percentage}%)`
             }
           }
         }
       }
     }
-  });
-};
+  })
+}
 
 onMounted(() => {
-  initChart();
-});
+  initChart()
+})
 
-watch(() => props.agents, () => {
-  initChart();
-});
+watch(agentCosts, () => {
+  initChart()
+})
 </script>

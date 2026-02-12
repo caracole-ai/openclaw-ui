@@ -74,6 +74,12 @@ const breadcrumbs = computed<Breadcrumb[]>(() => {
     return crumbs
   }
 
+  // /skills
+  if (segments[0] === 'skills') {
+    crumbs.push({ label: 'Skills', path: '/skills' })
+    return crumbs
+  }
+
   // /tests
   if (segments[0] === 'tests') {
     crumbs.push({ label: 'Tests', path: '/tests' })

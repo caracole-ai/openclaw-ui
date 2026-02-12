@@ -3,6 +3,9 @@
     <!-- Header global avec stats et refresh -->
     <AppHeader />
     
+    <!-- Toast system -->
+    <ToastContainer />
+
     <!-- Contenu des pages -->
     <NuxtLayout>
       <NuxtPage />
@@ -44,5 +47,20 @@ body {
 
 ::-webkit-scrollbar-thumb:hover {
   background: #94a3b8;
+}
+
+/* Page transition - fade 150ms */
+.page-enter-active,
+.page-leave-active {
+  transition: opacity 150ms ease;
+}
+.page-enter-from,
+.page-leave-to {
+  opacity: 0;
+}
+
+/* Badge color transitions */
+.badge-transition {
+  transition: background-color 300ms ease, color 300ms ease, border-color 300ms ease;
 }
 </style>

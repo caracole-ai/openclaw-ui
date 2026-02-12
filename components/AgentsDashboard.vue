@@ -3,7 +3,7 @@
     <!-- Header avec contrôles -->
     <div class="flex flex-wrap items-center justify-between gap-4">
       <h2 class="text-2xl font-bold text-gray-900">Agents</h2>
-      
+
       <div class="flex items-center gap-3">
         <!-- Bouton Tout déplier / Tout replier (visible seulement si groupé) -->
         <button
@@ -19,9 +19,43 @@
           </svg>
           {{ allExpanded ? 'Tout replier' : 'Tout déplier' }}
         </button>
-        
+
+        <!-- Filtre par team -->
+        <select
+          v-model="teamFilter"
+          class="text-sm border rounded-lg px-3 py-1.5 bg-white"
+        >
+          <option value="all">Toutes les teams</option>
+          <option value="system">System</option>
+          <option value="code">Code</option>
+          <option value="writing">Writing</option>
+        </select>
+
+        <!-- Filtre par skill -->
+        <select
+          v-model="skillFilter"
+          class="text-sm border rounded-lg px-3 py-1.5 bg-white"
+        >
+          <option value="all">Tous les skills</option>
+          <option v-for="skill in allSkills" :key="skill" :value="skill">
+            {{ skill }}
+          </option>
+        </select>
+
+        <!-- Filtre par status -->
+        <select
+          v-model="statusFilter"
+          class="text-sm border rounded-lg px-3 py-1.5 bg-white"
+        >
+          <option value="all">Tous les status</option>
+          <option value="active">Actif</option>
+          <option value="idle">Inactif</option>
+          <option value="error">Erreur</option>
+          <option value="offline">Hors ligne</option>
+        </select>
+
         <!-- Groupement -->
-        <select 
+        <select
           v-model="groupBy"
           class="text-sm border rounded-lg px-3 py-1.5 bg-white"
         >
@@ -29,7 +63,7 @@
           <option value="team">Par équipe</option>
           <option value="none">Sans groupement</option>
         </select>
-        
+
         <!-- Toggle densité -->
         <div class="flex border rounded-lg overflow-hidden">
           <button
@@ -57,8 +91,8 @@
     </div>
 
     <!-- État d'erreur -->
-    <div 
-      v-if="error" 
+    <div
+      v-if="error"
       class="bg-red-50 border border-red-200 rounded-lg p-4 flex items-start gap-3"
     >
       <svg class="w-5 h-5 text-red-500 flex-shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -66,9 +100,9 @@
       </svg>
       <div>
         <h3 class="text-sm font-medium text-red-800">Erreur de connexion</h3>
-        <p class="text-sm text-red-600 mt-1">{{ error.message }}</p>
-        <button 
-          @click="refresh"
+        <p class="text-sm text-red-600 mt-1">{{ error }}</p>
+        <button
+          @click="fetchAgents()"
           class="text-sm text-red-700 underline mt-2 hover:text-red-800"
         >
           Réessayer
@@ -77,9 +111,9 @@
     </div>
 
     <!-- Skeleton loading -->
-    <div v-else-if="pending && !agents.length" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-      <div 
-        v-for="i in 6" 
+    <div v-else-if="loading && !agents.length" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+      <div
+        v-for="i in 6"
         :key="i"
         class="bg-white rounded-lg shadow-sm border p-4 animate-pulse"
       >
@@ -97,8 +131,8 @@
     </div>
 
     <!-- État vide -->
-    <div 
-      v-else-if="!agents.length" 
+    <div
+      v-else-if="!agents.length"
       class="text-center py-12 bg-gray-50 rounded-lg"
     >
       <svg class="w-12 h-12 text-gray-400 mx-auto mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -110,8 +144,8 @@
 
     <!-- Vue groupée -->
     <div v-else-if="groupBy !== 'none'" class="space-y-4">
-      <div 
-        v-for="group in groupedAgents" 
+      <div
+        v-for="group in groupedAgents"
         :key="group.key"
         class="bg-white rounded-lg border shadow-sm overflow-hidden transition-all"
       >
@@ -121,11 +155,11 @@
           class="w-full flex items-center justify-between p-4 hover:bg-gray-50 transition-colors"
         >
           <div class="flex items-center gap-3">
-            <svg 
+            <svg
               class="w-5 h-5 text-gray-400 transition-transform"
               :class="{ 'rotate-90': expandedGroups.has(group.key) }"
-              fill="none" 
-              stroke="currentColor" 
+              fill="none"
+              stroke="currentColor"
               viewBox="0 0 24 24"
             >
               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7" />
@@ -140,7 +174,7 @@
             {{ expandedGroups.has(group.key) ? 'Replier' : 'Déplier' }}
           </span>
         </button>
-        
+
         <!-- Agents grid (collapsible) -->
         <Transition
           enter-active-class="transition-all duration-300 ease-out"
@@ -150,18 +184,18 @@
           leave-from-class="opacity-100 max-h-screen"
           leave-to-class="opacity-0 max-h-0"
         >
-          <div 
+          <div
             v-if="expandedGroups.has(group.key)"
             class="border-t bg-gray-50 p-4"
           >
-            <div 
+            <div
               class="grid gap-4"
-              :class="viewMode === 'compact' 
-                ? 'grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6' 
+              :class="viewMode === 'compact'
+                ? 'grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6'
                 : 'grid-cols-1 md:grid-cols-2 lg:grid-cols-3'"
             >
-              <AgentCard 
-                v-for="agent in group.agents" 
+              <AgentCard
+                v-for="agent in group.agents"
                 :key="agent.id"
                 :agent="agent"
                 :compact="viewMode === 'compact'"
@@ -173,15 +207,15 @@
     </div>
 
     <!-- Vue sans groupement -->
-    <div 
-      v-else 
+    <div
+      v-else
       class="grid gap-4"
-      :class="viewMode === 'compact' 
-        ? 'grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6' 
+      :class="viewMode === 'compact'
+        ? 'grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6'
         : 'grid-cols-1 md:grid-cols-2 lg:grid-cols-3'"
     >
-      <AgentCard 
-        v-for="agent in sortedAgents" 
+      <AgentCard
+        v-for="agent in filteredAgentsList"
         :key="agent.id"
         :agent="agent"
         :compact="viewMode === 'compact'"
@@ -192,46 +226,74 @@
 
 <script setup lang="ts">
 import { ref, computed, watch } from 'vue'
-import { useAgentsStatus } from '~/composables/useAgentsStatus'
-import AgentCard from '~/components/AgentCard.vue'
+import { useAgents } from '~/composables/useAgents'
 
 const {
   agents,
   sortedAgents,
-  pending,
+  loading,
   error,
-  refresh,
-} = useAgentsStatus()
+  fetchAgents,
+} = useAgents()
 
-const groupBy = ref<'status' | 'team' | 'none'>('team') // Default: par équipe
-const viewMode = ref<'compact' | 'detailed'>('compact') // Default: vue compacte
-const expandedGroups = ref<Set<string>>(new Set()) // Track which groups are expanded
+const groupBy = ref<'status' | 'team' | 'none'>('team')
+const viewMode = ref<'compact' | 'detailed'>('compact')
+const expandedGroups = ref<Set<string>>(new Set())
+const teamFilter = ref('all')
+const skillFilter = ref('all')
+const statusFilter = ref('all')
+
+// Extract all unique skills from agents
+const allSkills = computed(() => {
+  const skills = new Set<string>()
+  agents.value.forEach(a => {
+    a.skills?.forEach(s => skills.add(s))
+  })
+  return Array.from(skills).sort()
+})
+
+// Filter agents by team, skill, status
+const filteredAgentsList = computed(() => {
+  let result = sortedAgents.value
+
+  if (teamFilter.value !== 'all') {
+    result = result.filter(a => a.team === teamFilter.value)
+  }
+  if (skillFilter.value !== 'all') {
+    result = result.filter(a => a.skills?.includes(skillFilter.value))
+  }
+  if (statusFilter.value !== 'all') {
+    result = result.filter(a => a.status === statusFilter.value)
+  }
+
+  return result
+})
 
 const GROUP_CONFIG = {
   status: [
-    { key: 'online', label: 'En ligne', icon: '🟢' },
+    { key: 'active', label: 'Actif', icon: '🟢' },
     { key: 'idle', label: 'Inactif', icon: '🟡' },
+    { key: 'error', label: 'Erreur', icon: '🔴' },
     { key: 'offline', label: 'Hors ligne', icon: '⚫' }
   ],
   team: [
+    { key: 'system', label: 'System', icon: '🔧' },
     { key: 'code', label: 'Code', icon: '💻' },
-    { key: 'writing', label: 'Écriture', icon: '✍️' },
-    { key: 'free', label: 'Libre', icon: '🌟' },
-    { key: 'unknown', label: 'Autre', icon: '❓' }
+    { key: 'writing', label: 'Écriture', icon: '✍️' }
   ]
 }
 
 const groupedAgents = computed(() => {
   const config = GROUP_CONFIG[groupBy.value as keyof typeof GROUP_CONFIG]
   if (!config) return []
-  
+
   return config.map(group => ({
     ...group,
-    agents: sortedAgents.value.filter(agent => {
+    agents: filteredAgentsList.value.filter(agent => {
       if (groupBy.value === 'status') {
         return agent.status === group.key
       }
-      return (agent.team || 'unknown') === group.key
+      return agent.team === group.key
     })
   })).filter(group => group.agents.length > 0)
 })

@@ -66,6 +66,10 @@ export interface Project {
   priority?: 'low' | 'medium' | 'high' | 'urgent'
   repository?: string     // GitHub URL if applicable
   workspace?: string      // Path to project workspace
+  
+  // Mattermost integration
+  channelId?: string      // Mattermost channel ID for notifications
+  channelName?: string    // Mattermost channel display name
 }
 
 export interface ProjectsData {

@@ -54,6 +54,22 @@ export interface SessionInfo {
   percentUsed: number
   model: string
   ageMs: number
+  /** Projet lié à cette session (si canal de projet) */
+  project?: {
+    id: string
+    name: string
+    status?: string
+  }
+}
+
+/**
+ * Informations de projet pour un agent
+ */
+export interface AgentProjectInfo {
+  id: string
+  name: string
+  role?: string
+  status?: string
 }
 
 /**
@@ -84,6 +100,8 @@ export interface AgentStatus {
   maxPercentUsed: number
   /** Sessions actives détaillées */
   sessions: SessionInfo[]
+  /** Projets auxquels l'agent participe */
+  projects?: AgentProjectInfo[]
 }
 
 /**
