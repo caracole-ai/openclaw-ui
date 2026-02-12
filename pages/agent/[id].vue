@@ -60,15 +60,15 @@
         <div class="grid grid-cols-4 gap-4 mt-6">
           <div class="bg-gray-50 rounded-lg p-4">
             <div class="text-sm text-gray-500">Sessions actives</div>
-            <div class="text-2xl font-bold">{{ agent.activeSessions }}</div>
+            <div class="text-2xl font-bold">{{ liveStats.activeSessions }}</div>
           </div>
           <div class="bg-gray-50 rounded-lg p-4">
             <div class="text-sm text-gray-500">Tokens utilisés</div>
-            <div class="text-2xl font-bold">{{ formatTokens(agent.totalTokens) }}</div>
+            <div class="text-2xl font-bold">{{ formatTokens(liveStats.totalTokens) }}</div>
           </div>
           <div class="bg-gray-50 rounded-lg p-4">
             <div class="text-sm text-gray-500">Contexte utilisé</div>
-            <div class="text-2xl font-bold" :class="percentClass">{{ agent.maxPercentUsed }}%</div>
+            <div class="text-2xl font-bold" :class="percentClass">{{ liveStats.maxPercentUsed }}%</div>
           </div>
           <div class="bg-gray-50 rounded-lg p-4">
             <div class="text-sm text-gray-500">Modèle</div>
@@ -171,20 +171,27 @@
 
           <!-- Tab: Sessions -->
           <div v-if="activeTab === 'sessions'">
-            <div v-if="agent.sessions?.length" class="space-y-3">
+            <div v-if="liveSessions.length" class="space-y-3">
               <div 
-                v-for="session in agent.sessions" 
-                :key="session.sessionId"
+                v-for="session in liveSessions" 
+                :key="session.sessionKey"
                 class="border rounded-lg p-4"
               >
                 <div class="flex items-center justify-between mb-2">
-                  <span class="font-medium">{{ getChannelDisplayName(session.context) }}</span>
+                  <span class="font-medium font-mono text-sm">{{ formatSessionKey(session.sessionKey) }}</span>
                   <span class="text-sm text-gray-500">{{ formatTokens(session.totalTokens) }} tokens</span>
                 </div>
                 <div class="flex items-center gap-4 text-sm text-gray-500">
-                  <span>{{ session.model }}</span>
+                  <span>{{ session.model || '-' }}</span>
                   <span>{{ session.percentUsed }}% contexte</span>
-                  <span>Actif il y a {{ formatAge(session.ageMs) }}</span>
+                </div>
+                <!-- Token bar -->
+                <div class="mt-2 h-1.5 bg-gray-100 rounded-full overflow-hidden">
+                  <div 
+                    class="h-full rounded-full transition-all"
+                    :class="session.percentUsed >= 80 ? 'bg-red-500' : session.percentUsed >= 50 ? 'bg-yellow-500' : 'bg-blue-500'"
+                    :style="{ width: `${Math.min(session.percentUsed, 100)}%` }"
+                  ></div>
                 </div>
               </div>
             </div>
@@ -232,11 +239,20 @@ const tabs = [
   { id: 'channels', label: 'Channels' },
 ]
 
-// Fetch agent details
+// Fetch agent details + live session data
 const { data: agent, pending, error } = await useFetch(`/api/agents/${agentId.value}`)
+const { data: live } = await useFetch(`/api/agents/${agentId.value}/live`)
 
 // Projects come from the agent API (source of truth: projects.json)
 const agentProjects = computed(() => agent.value?.projects || [])
+
+// Live data from gateway session stores
+const liveStats = computed(() => ({
+  totalTokens: live.value?.totalTokens || 0,
+  activeSessions: live.value?.activeSessions || 0,
+  maxPercentUsed: live.value?.maxPercentUsed || 0,
+}))
+const liveSessions = computed(() => live.value?.sessions || [])
 
 useHead({
   title: computed(() => `${agent.value?.name || agentId.value} - OpenClaw`)
@@ -259,7 +275,7 @@ const avatarClass = computed(() => {
 })
 
 const percentClass = computed(() => {
-  const p = agent.value?.maxPercentUsed ?? 0
+  const p = liveStats.value?.maxPercentUsed ?? 0
   if (p >= 80) return 'text-red-600'
   if (p >= 60) return 'text-yellow-600'
   return 'text-gray-900'
@@ -288,6 +304,15 @@ function formatAge(ageMs: number): string {
   if (seconds < 60) return `${seconds}s`
   if (minutes < 60) return `${minutes}m`
   return `${hours}h`
+}
+
+function formatSessionKey(key: string): string {
+  // agent:amelia:mattermost:amelia:dm:xxx → mattermost / dm
+  // agent:amelia:main → main session
+  const parts = key.split(':')
+  if (parts.length <= 3) return parts[parts.length - 1] || key
+  // Skip agent:<id>: prefix
+  return parts.slice(2).join(' / ')
 }
 
 function getAgentRole(project: any): string {
@@ -320,10 +345,11 @@ const agentTeam = computed(() => {
   return TEAM_MAP[team] || { label: team, icon: '❓', color: 'bg-gray-100 text-gray-700' }
 })
 
-// Format last activity
+// Format last activity — prefer live data
 const lastActivityText = computed(() => {
-  if (!agent.value?.lastActivity) return null
-  const date = new Date(agent.value.lastActivity)
+  const ts = live.value?.lastActivity || agent.value?.lastActivity
+  if (!ts) return null
+  const date = new Date(ts)
   const now = new Date()
   const diffMs = now.getTime() - date.getTime()
   const diffSeconds = Math.floor(diffMs / 1000)
