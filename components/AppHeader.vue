@@ -241,7 +241,7 @@ function formatTokens(tokens: number): string {
 onMounted(() => {
   refresh()
   pollInterval = setInterval(refresh, 30_000)
-  tickInterval = setInterval(() => { now.value = Date.now() }, 1000)
+  tickInterval = setInterval(() => { now.value = Date.now() }, 60_000)
 })
 
 onUnmounted(() => {
