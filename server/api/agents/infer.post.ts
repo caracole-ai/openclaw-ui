@@ -3,6 +3,46 @@ import { join } from 'path'
 
 const OPENCLAW_DIR = join(process.env.HOME || '', '.openclaw')
 
+// ─── LLM inference (if ANTHROPIC_API_KEY available) ────────────
+async function llmInfer(prompt: string, context: { teams: string[], skills: string[], projects: string[] }): Promise<any | null> {
+  const apiKey = process.env.ANTHROPIC_API_KEY
+  if (!apiKey) return null
+
+  const systemPrompt = `Tu crées des profils d'agents IA. Contexte :
+- Équipes : ${context.teams.join(', ')} (ou nouvelles)
+- Skills : ${context.skills.join(', ')}
+- Projets : ${context.projects.join(', ')}
+
+Réponds UNIQUEMENT en JSON valide, sans backticks :
+{"id":"lowercase","name":"Prénom","emoji":"emoji","role":"rôle","team":"team","model":"","skills":[],"projects":[],"soulDescription":"description fr, 2-3 phrases"}
+
+Règles : id=prénom minuscule, emoji=reflet du rôle, skills pertinents, team=code|system|writing|creative|ops, model vide.`
+
+  try {
+    const res = await fetch('https://api.anthropic.com/v1/messages', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'x-api-key': apiKey,
+        'anthropic-version': '2023-06-01',
+      },
+      body: JSON.stringify({
+        model: 'claude-sonnet-4-20250514',
+        max_tokens: 400,
+        system: systemPrompt,
+        messages: [{ role: 'user', content: prompt }],
+      }),
+    })
+    if (!res.ok) return null
+    const data = await res.json() as any
+    const text = data.content?.[0]?.text || ''
+    const match = text.match(/\{[\s\S]*\}/)
+    return match ? JSON.parse(match[0]) : null
+  } catch {
+    return null
+  }
+}
+
 // ─── Role → metadata mapping ──────────────────────────────────
 const ROLE_PROFILES: Record<string, { emoji: string, team: string, skills: string[], soulTemplate: string }> = {
   // Code roles
@@ -137,10 +177,35 @@ export default defineEventHandler(async (event) => {
     throw createError({ statusCode: 400, statusMessage: 'prompt is required' })
   }
 
+  const context = await getExistingContext()
+
+  // Try LLM first (if API key available), fallback to heuristics
+  const llmResult = await llmInfer(prompt, context)
+
+  if (llmResult) {
+    return {
+      success: true,
+      mode: 'llm',
+      agent: {
+        id: llmResult.id,
+        name: llmResult.name,
+        emoji: llmResult.emoji,
+        role: llmResult.role,
+        team: llmResult.team,
+        model: llmResult.model || '',
+        skills: llmResult.skills || [],
+        projects: llmResult.projects || [],
+      },
+      soulDescription: llmResult.soulDescription || '',
+    }
+  }
+
+  // Fallback: heuristic inference
   const agent = inferAgent(prompt)
 
   return {
     success: true,
+    mode: 'heuristic',
     agent: {
       id: agent.id,
       name: agent.name,
