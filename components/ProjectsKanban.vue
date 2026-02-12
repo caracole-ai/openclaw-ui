@@ -1,11 +1,11 @@
 <template>
-  <div class="overflow-x-auto -mx-4 px-4 pb-4">
-    <div class="flex gap-4 min-w-max xl:min-w-0 xl:grid xl:grid-cols-7">
+  <div class="-mx-4 px-4 pb-4">
+    <div class="grid grid-cols-7 gap-2">
       <!-- Column for each state -->
       <div
         v-for="column in columns"
         :key="column.state"
-        class="bg-gray-100 rounded-lg transition-colors w-64 xl:w-auto flex-shrink-0"
+        class="bg-gray-100 rounded-lg transition-colors min-w-0"
         :class="{ 'bg-blue-100 ring-2 ring-blue-300': dragOverColumn === column.state }"
         @dragover.prevent="dragOverColumn = column.state"
         @dragleave="dragOverColumn = null"
@@ -42,9 +42,15 @@
               {{ project.name }}
             </div>
 
-            <!-- Team badge -->
-            <div class="flex items-center gap-2 mb-2">
-              <span class="text-xs text-gray-500">{{ project.team }}</span>
+            <!-- Team badges -->
+            <div class="flex flex-wrap gap-1 mb-2">
+              <span
+                v-for="member in getTeamMembers(project)"
+                :key="member"
+                class="inline-flex items-center px-1.5 py-0.5 text-[10px] font-medium rounded-full bg-blue-50 text-blue-700"
+              >
+                {{ AGENT_EMOJIS[member] || '🤖' }} {{ member }}
+              </span>
             </div>
 
             <!-- Progress -->
@@ -101,6 +107,18 @@ const VALID_TRANSITIONS: Record<ProjectState, ProjectState[]> = {
   delivery: ['review', 'rex'],
   rex:      ['delivery', 'done'],
   done:     [],
+}
+
+const AGENT_EMOJIS: Record<string, string> = {
+  main: '🔧', winston: '🏗️', amelia: '💻', claudio: '⚙️'
+}
+
+function getTeamMembers(project: Project): string[] {
+  if (Array.isArray(project.team)) {
+    return project.team.map((m: any) => typeof m === 'string' ? m : m.agent)
+  }
+  if (Array.isArray((project as any).agents)) return (project as any).agents
+  return []
 }
 
 const STATE_ICONS: Record<ProjectState, string> = {

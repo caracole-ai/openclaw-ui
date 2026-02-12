@@ -1,58 +1,30 @@
 /**
- * GET /api/projects/:id - Get project details
+ * GET /api/projects/:id
+ * Source de vérité unique : sources/projects.json
  */
-
 import { readFile } from 'fs/promises'
-import { existsSync } from 'fs'
-import type { Project, ProjectsData } from '~/types/projects'
+import { join } from 'path'
 
-const PROJECTS_FILE = process.env.HOME + '/.openclaw/projects/projects.json'
+const SOURCES_DIR = join(process.env.HOME || '', '.openclaw/sources')
 
-export default defineEventHandler(async (event): Promise<Project> => {
+export default defineEventHandler(async (event) => {
   const id = getRouterParam(event, 'id')
-
   if (!id) {
-    throw createError({
-      statusCode: 400,
-      statusMessage: 'Project ID required'
-    })
+    throw createError({ statusCode: 400, statusMessage: 'Project ID requis' })
   }
 
   try {
-    if (!existsSync(PROJECTS_FILE)) {
-      throw createError({
-        statusCode: 404,
-        statusMessage: 'Project not found'
-      })
-    }
-
-    const data = await readFile(PROJECTS_FILE, 'utf-8')
-    const projectsData: ProjectsData = JSON.parse(data)
-
-    const project = projectsData.projects.find(p => p.id === id)
+    const raw = await readFile(join(SOURCES_DIR, 'projects.json'), 'utf-8')
+    const { projects } = JSON.parse(raw)
+    const project = projects.find((p: any) => p.id === id)
 
     if (!project) {
-      throw createError({
-        statusCode: 404,
-        statusMessage: 'Project not found'
-      })
+      throw createError({ statusCode: 404, statusMessage: `Projet '${id}' non trouvé` })
     }
 
-    // Calculate stale indicators
-    const now = Date.now()
-    const updatedAt = new Date(project.updatedAt).getTime()
-    const staleHours = Math.floor((now - updatedAt) / (1000 * 60 * 60))
-    const isStale = staleHours > 24 && !['completed', 'archived', 'paused'].includes(project.status)
-
-    return { ...project, staleHours, isStale }
+    return project
   } catch (error: any) {
     if (error.statusCode) throw error
-    
-    console.error('[GET /api/projects/:id] Error:', error.message)
-    throw createError({
-      statusCode: 500,
-      statusMessage: 'Failed to load project',
-      data: { error: error.message }
-    })
+    throw createError({ statusCode: 500, statusMessage: 'Erreur lecture projet' })
   }
 })

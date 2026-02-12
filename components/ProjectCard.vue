@@ -15,7 +15,15 @@
         </div>
         <div>
           <h3 class="font-semibold text-gray-900">{{ project.name }}</h3>
-          <p class="text-xs text-gray-500">{{ project.team }}</p>
+          <div v-if="teamMembers.length" class="flex items-center gap-1 mt-1">
+            <span
+              v-for="member in teamMembers"
+              :key="member"
+              class="inline-flex items-center gap-1 px-2 py-0.5 text-xs font-medium rounded-full bg-blue-50 text-blue-700"
+            >
+              {{ getAgentEmoji(member) }} {{ member }}
+            </span>
+          </div>
         </div>
       </div>
       <span
@@ -71,6 +79,22 @@ const STATE_CONFIG: Record<ProjectState, { label: string; color: string; bgLight
   delivery:  { label: 'Delivery',  color: '#10B981', bgLight: '#ECFDF5', icon: '🚀', index: 4 },
   rex:       { label: 'REX',       color: '#EC4899', bgLight: '#FDF2F8', icon: '💡', index: 5 },
   done:      { label: 'Done',      color: '#059669', bgLight: '#ECFDF5', icon: '✅', index: 6 },
+}
+
+const AGENT_EMOJIS: Record<string, string> = {
+  main: '🔧', winston: '🏗️', amelia: '💻', claudio: '⚙️'
+}
+
+const teamMembers = computed(() => {
+  if (Array.isArray(props.project.team)) {
+    return props.project.team.map((m: any) => typeof m === 'string' ? m : m.agent)
+  }
+  if (Array.isArray(props.project.agents)) return props.project.agents
+  return []
+})
+
+function getAgentEmoji(name: string): string {
+  return AGENT_EMOJIS[name] || '🤖'
 }
 
 const stateConfig = computed(() => {
