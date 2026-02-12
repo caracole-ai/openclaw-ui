@@ -25,19 +25,13 @@ export default defineEventHandler(async (event) => {
     const raw = await readFile(sessionsFile, 'utf-8')
     const sessionsMap = JSON.parse(raw)
 
-    // Model context window sizes
-    const CTX_SIZES: Record<string, number> = {
-      'claude-opus-4-6': 200000,
-      'claude-sonnet-4-20250514': 200000,
-      'claude-haiku-3-5-20241022': 200000,
-    }
     const DEFAULT_CTX = 200000
 
     const sessions = Object.entries(sessionsMap).map(([key, val]: [string, any]) => {
       const totalTokens = val.totalTokens || 0
-      const contextTokens = val.contextTokens || totalTokens
-      const maxCtx = CTX_SIZES[val.model] || DEFAULT_CTX
-      const percentUsed = maxCtx > 0 ? Math.round((contextTokens / maxCtx) * 100) : 0
+      // contextTokens = window size (e.g. 200000), not usage
+      const contextWindow = val.contextTokens || DEFAULT_CTX
+      const percentUsed = contextWindow > 0 ? Math.round((totalTokens / contextWindow) * 100) : 0
 
       return {
         sessionKey: key,
@@ -45,7 +39,7 @@ export default defineEventHandler(async (event) => {
         totalTokens,
         inputTokens: val.inputTokens || 0,
         outputTokens: val.outputTokens || 0,
-        contextTokens,
+        contextWindow,
         percentUsed,
         lastActivity: val.updatedAt || null,
       }
