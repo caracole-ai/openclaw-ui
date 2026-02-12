@@ -1,32 +1,36 @@
-import { readFile } from 'fs/promises'
-import { join } from 'path'
-import type { SkillsSource } from '~/types/skill'
+/**
+ * GET /api/skills
+ * Source: SQLite
+ */
+import { getDb } from '~/server/utils/db'
 
-const SOURCES_DIR = join(process.env.HOME || '', '.openclaw/sources')
+export default defineEventHandler(() => {
+  const db = getDb()
 
-export default defineEventHandler(async (event) => {
-  const query = getQuery(event)
-  const agentFilter = query.agent as string | undefined
+  const installed = db.prepare('SELECT * FROM skills ORDER BY name').all() as any[]
+  const assignments = db.prepare('SELECT agent_id, skill_id FROM agent_skills').all() as any[]
 
-  try {
-    const raw = await readFile(join(SOURCES_DIR, 'skills.json'), 'utf-8')
-    const source: SkillsSource = JSON.parse(raw)
+  // Build assignments map
+  const assignMap: Record<string, string[]> = {}
+  for (const a of assignments) {
+    if (!assignMap[a.agent_id]) assignMap[a.agent_id] = []
+    assignMap[a.agent_id].push(a.skill_id)
+  }
 
-    if (agentFilter) {
-      const agentSkillIds = source.assignments?.[agentFilter] || []
-      return {
-        installed: source.installed.filter(s => agentSkillIds.includes(s.id)),
-        pending: source.pending.filter(s => agentSkillIds.includes(s.id)),
-        assignments: { [agentFilter]: agentSkillIds },
-        registry: source.registry
-      }
-    }
-
-    return source
-  } catch (err: any) {
-    if (err.code === 'ENOENT') {
-      return { registry: { official: '', trusted: [] }, installed: [], pending: [], assignments: {} }
-    }
-    throw createError({ statusCode: 500, statusMessage: 'Erreur lecture skills', data: { error: err.message } })
+  return {
+    installed: installed.map(s => ({
+      id: s.id,
+      name: s.name,
+      description: s.description,
+      version: s.version,
+      source: s.source,
+      path: s.path,
+      manifest: s.manifest ? JSON.parse(s.manifest) : null,
+      installedAt: s.installed_at,
+      installedBy: s.installed_by,
+      status: s.status,
+    })),
+    assignments: assignMap,
+    timestamp: new Date().toISOString(),
   }
 })

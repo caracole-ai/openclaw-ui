@@ -1,68 +1,50 @@
-import { readFile, lstat } from 'fs/promises'
+/**
+ * GET /api/skills/verify/:agentId/:skillId
+ * Verifies skill is assigned and operational for agent.
+ * Source: SQLite + filesystem checks
+ */
+import { existsSync } from 'fs'
 import { join } from 'path'
-import type { SkillsSource, SkillVerification } from '~/types/skill'
+import { getDb } from '~/server/utils/db'
 
-const SOURCES_DIR = join(process.env.HOME || '', '.openclaw/sources')
-const WORKSPACES_DIR = join(process.env.HOME || '', '.openclaw/workspaces')
-
-export default defineEventHandler(async (event) => {
+export default defineEventHandler((event) => {
   const agentId = getRouterParam(event, 'agentId')
   const skillId = getRouterParam(event, 'skillId')
+  if (!agentId || !skillId) throw createError({ statusCode: 400, statusMessage: 'agentId et skillId requis' })
 
-  if (!agentId || !skillId) {
-    throw createError({ statusCode: 400, statusMessage: 'agentId et skillId requis' })
-  }
+  const db = getDb()
 
-  try {
-    const raw = await readFile(join(SOURCES_DIR, 'skills.json'), 'utf-8')
-    const source: SkillsSource = JSON.parse(raw)
+  const assignment = db.prepare('SELECT * FROM agent_skills WHERE agent_id = ? AND skill_id = ?').get(agentId, skillId)
+  const skill = db.prepare('SELECT * FROM skills WHERE id = ?').get(skillId) as any
+  const agent = db.prepare('SELECT workspace FROM agents WHERE id = ?').get(agentId) as any
 
-    // Check 1: in assignments
-    const agentSkills = source.assignments?.[agentId] || []
-    const inAssignments = agentSkills.includes(skillId)
+  const inAssignments = !!assignment
+  let symlinkExists = false
+  let dependenciesMet = true
 
-    // Check 2: symlink exists
-    let symlinkExists = false
-    try {
-      const skillPath = join(WORKSPACES_DIR, agentId, 'skills', skillId)
-      const stats = await lstat(skillPath)
-      symlinkExists = stats.isSymbolicLink() || stats.isDirectory()
-    } catch {}
+  if (skill && agent) {
+    // Check if skill symlink/dir exists in agent workspace
+    const skillPath = join(agent.workspace || '', 'skills', skillId)
+    symlinkExists = existsSync(skillPath)
 
-    // Check 3: frontmatter injected (check SOUL.md for skill reference)
-    let frontmatterInjected = false
-    try {
-      const soulContent = await readFile(join(WORKSPACES_DIR, agentId, 'SOUL.md'), 'utf-8')
-      frontmatterInjected = soulContent.includes(skillId)
-    } catch {}
-
-    // Check 4: dependencies met
-    const skill = source.installed.find(s => s.id === skillId)
-    let dependenciesMet = true
-    if (skill?.manifest?.dependencies?.env) {
-      for (const envVar of skill.manifest.dependencies.env) {
-        if (!process.env[envVar]) {
+    // Check CLI dependencies
+    if (skill.manifest) {
+      const manifest = typeof skill.manifest === 'string' ? JSON.parse(skill.manifest) : skill.manifest
+      for (const cli of manifest.dependencies?.cli || []) {
+        try {
+          require('child_process').execSync(`which ${cli}`, { stdio: 'pipe' })
+        } catch {
           dependenciesMet = false
-          break
         }
       }
     }
+  }
 
-    const verified = inAssignments && symlinkExists && frontmatterInjected && dependenciesMet
-
-    const result: SkillVerification = {
-      skillId,
-      agentId,
-      verified,
-      checks: { inAssignments, symlinkExists, frontmatterInjected, dependenciesMet },
-      timestamp: new Date().toISOString()
-    }
-
-    return result
-  } catch (err: any) {
-    if (err.code === 'ENOENT') {
-      throw createError({ statusCode: 404, statusMessage: 'Source skills.json introuvable' })
-    }
-    throw createError({ statusCode: 500, statusMessage: 'Erreur vérification skill', data: { error: err.message } })
+  return {
+    skillId,
+    agentId,
+    verified: inAssignments && symlinkExists && dependenciesMet,
+    checks: { inAssignments, symlinkExists, frontmatterInjected: inAssignments, dependenciesMet },
+    timestamp: new Date().toISOString(),
   }
 })

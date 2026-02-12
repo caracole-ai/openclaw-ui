@@ -61,7 +61,7 @@
 
       <!-- Empty State -->
       <div
-        v-else-if="summary && summary.totalUsage === 0 && timeline.length === 0"
+        v-else-if="summary && (summary.totalTokens || 0) === 0 && timeline.length === 0"
         class="bg-white rounded-xl shadow-sm border p-16 text-center"
       >
         <div class="text-5xl mb-4">&#x1F4B0;</div>
@@ -83,8 +83,8 @@
           <!-- Total tokens -->
           <div class="bg-white rounded-xl shadow-sm border border-l-4 border-l-blue-500 p-6">
             <p class="text-sm text-gray-500 mb-1">Total tokens</p>
-            <p class="text-3xl font-bold text-blue-600">{{ formatTokens(summary.totalUsage) }}</p>
-            <p class="text-xs text-gray-400 mt-1">Cumul global</p>
+            <p class="text-3xl font-bold text-blue-600">{{ formatTokens(summary.totalTokens || 0) }}</p>
+            <p class="text-xs text-gray-400 mt-1">{{ summary.totalSessions || 0 }} sessions actives</p>
           </div>
 
           <!-- Cout moyen / jour -->
@@ -322,8 +322,7 @@ const paginatedTimeline = computed(() => {
 // -- Computed KPIs --
 
 const totalCost = computed(() => {
-  if (!summary.value?.topAgents?.length) return 0
-  return summary.value.topAgents.reduce((acc, a) => acc + a.cost, 0)
+  return summary.value?.totalCost || 0
 })
 
 const averageDailyCost = computed(() => {

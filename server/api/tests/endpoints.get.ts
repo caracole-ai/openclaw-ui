@@ -1,48 +1,36 @@
 /**
  * GET /api/tests/endpoints
- * E2E test: calls all API endpoints internally and reports status
+ * E2E test: calls all API endpoints via internal $fetch
  */
 export default defineEventHandler(async (event) => {
-  const baseUrl = getRequestURL(event)
-  const origin = `${baseUrl.protocol}//${baseUrl.host}`
-
   const endpoints = [
     { path: '/api/agents', check: (d: any) => `${d.agents?.length} agents` },
     { path: '/api/agents/main', check: (d: any) => `name=${d.name} team=${d.team}` },
-    { path: '/api/agents/amelia', check: (d: any) => `name=${d.name} projects=${d.projects?.length}` },
-    { path: '/api/agents/main/live', check: (d: any) => `tokens=${d.totalTokens} sessions=${d.sessions?.length}` },
-    { path: '/api/agents/amelia/live', check: (d: any) => `tokens=${d.totalTokens}` },
+    { path: '/api/agents/amelia', check: (d: any) => `name=${d.name} skills=${d.skills?.length}` },
     { path: '/api/projects', check: (d: any) => `${d.projects?.length} projects` },
     { path: '/api/projects/dashboard', check: (d: any) => `name=${d.name || d.id}` },
-    { path: '/api/projects/dashboard/docs', check: (d: any) => `${(Array.isArray(d) ? d : d.docs || []).length} docs` },
+    { path: '/api/projects/dashboard/docs', check: (d: any) => `${(d.docs || []).length} docs` },
     { path: '/api/skills', check: (d: any) => `${d.installed?.length} installed` },
     { path: '/api/tokens/summary', check: (d: any) => `topAgents=${d.topAgents?.length || 0}` },
-    { path: '/api/tokens/timeline', check: (d: any) => `keys=${Object.keys(d).length}` },
+    { path: '/api/tokens/timeline', check: (d: any) => `points=${d.timeline?.length || 0}` },
   ]
 
   const results = []
+
   for (const ep of endpoints) {
     const start = Date.now()
     try {
-      const res = await fetch(`${origin}${ep.path}`)
-      const durationMs = Date.now() - start
-      if (res.status >= 400) {
-        results.push({ path: ep.path, status: 'fail', httpStatus: res.status, durationMs, message: await res.text() })
-        continue
-      }
-      const data = await res.json()
-      results.push({ path: ep.path, status: 'pass', httpStatus: res.status, durationMs, detail: ep.check(data) })
-    } catch (e: any) {
-      results.push({ path: ep.path, status: 'fail', durationMs: Date.now() - start, message: e.message })
+      const data = await $fetch(ep.path)
+      const duration = Date.now() - start
+      const detail = ep.check(data)
+      results.push({ path: ep.path, status: 'pass', httpStatus: 200, durationMs: duration, detail })
+    } catch (err: any) {
+      results.push({ path: ep.path, status: 'fail', durationMs: Date.now() - start, message: err.message || String(err) })
     }
   }
 
-  const pass = results.filter(r => r.status === 'pass').length
-  const fail = results.filter(r => r.status === 'fail').length
+  const passed = results.filter(r => r.status === 'pass').length
+  const failed = results.filter(r => r.status === 'fail').length
 
-  return {
-    results,
-    summary: { total: results.length, pass, fail },
-    timestamp: new Date().toISOString(),
-  }
+  return { results, summary: { total: results.length, passed, failed }, timestamp: new Date().toISOString() }
 })

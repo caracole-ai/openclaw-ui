@@ -1,12 +1,11 @@
 /**
  * GET /api/agents/:id
- * Source de vérité unique : sources/agents.json + fichiers workspace
+ * Source: SQLite + workspace files + live session stores
  */
 import { readFile } from 'fs/promises'
 import { existsSync, readdirSync } from 'fs'
 import { join } from 'path'
-
-const SOURCES_DIR = join(process.env.HOME || '', '.openclaw/sources')
+import { getDb, getLiveStats, getLiveSessions } from '~/server/utils/db'
 
 const WORKSPACE_FILES = [
   'SOUL.md', 'IDENTITY.md', 'USER.md', 'AGENTS.md',
@@ -15,96 +14,65 @@ const WORKSPACE_FILES = [
 
 export default defineEventHandler(async (event) => {
   const agentId = getRouterParam(event, 'id')
+  if (!agentId) throw createError({ statusCode: 400, statusMessage: 'Agent ID requis' })
 
-  if (!agentId) {
-    throw createError({ statusCode: 400, statusMessage: 'Agent ID requis' })
+  const db = getDb()
+  const agent = db.prepare('SELECT * FROM agents WHERE id = ?').get(agentId) as any
+  if (!agent) throw createError({ statusCode: 404, statusMessage: `Agent '${agentId}' non trouvé` })
+
+  // Skills
+  const skills = db.prepare('SELECT skill_id FROM agent_skills WHERE agent_id = ?')
+    .all(agentId).map((r: any) => r.skill_id)
+
+  // Projects
+  const projects = db.prepare(`
+    SELECT p.id, p.name, p.status, p.progress, p.type, pa.role as agent_role
+    FROM projects p
+    JOIN project_agents pa ON pa.project_id = p.id
+    WHERE pa.agent_id = ?
+  `).all(agentId)
+
+  // Workspace files
+  const files: Record<string, string> = {}
+  const workspacePath = agent.workspace
+  if (workspacePath && existsSync(workspacePath)) {
+    for (const filename of WORKSPACE_FILES) {
+      const filePath = join(workspacePath, filename)
+      if (existsSync(filePath)) {
+        try { files[filename] = await readFile(filePath, 'utf-8') } catch {}
+      }
+    }
+    const memoryDir = join(workspacePath, 'memory')
+    if (existsSync(memoryDir)) {
+      try {
+        const memoryFiles = readdirSync(memoryDir).filter(f => f.endsWith('.md')).sort().slice(-5)
+        for (const mf of memoryFiles) {
+          files[`memory/${mf}`] = await readFile(join(memoryDir, mf), 'utf-8')
+        }
+      } catch {}
+    }
   }
 
-  try {
-    const raw = await readFile(join(SOURCES_DIR, 'agents.json'), 'utf-8')
-    const { agents } = JSON.parse(raw)
+  // Live data
+  const live = getLiveStats(agentId)
+  const sessions = getLiveSessions(agentId)
 
-    const agent = agents.find((a: any) => a.id === agentId)
-    if (!agent) {
-      throw createError({ statusCode: 404, statusMessage: `Agent '${agentId}' non trouvé` })
-    }
-
-    // Workspace path comes from the source of truth
-    const workspacePath = agent.workspace
-
-    // Read workspace files
-    const files: Record<string, string> = {}
-    if (workspacePath && existsSync(workspacePath)) {
-      for (const filename of WORKSPACE_FILES) {
-        const filePath = join(workspacePath, filename)
-        if (existsSync(filePath)) {
-          try { files[filename] = await readFile(filePath, 'utf-8') } catch {}
-        }
-      }
-
-      const memoryDir = join(workspacePath, 'memory')
-      if (existsSync(memoryDir)) {
-        try {
-          const memoryFiles = readdirSync(memoryDir)
-            .filter(f => f.endsWith('.md'))
-            .sort()
-            .slice(-5)
-          for (const mf of memoryFiles) {
-            files[`memory/${mf}`] = await readFile(join(memoryDir, mf), 'utf-8')
-          }
-        } catch {}
-      }
-    }
-
-    // Token usage from sources/tokens.json
-    let totalTokens = 0
-    let lastActivity: string | null = null
-    try {
-      const tokensRaw = await readFile(join(SOURCES_DIR, 'tokens.json'), 'utf-8')
-      const { events = [] } = JSON.parse(tokensRaw)
-      const agentEvents = events.filter((e: any) => e.agentId === agentId)
-      totalTokens = agentEvents.reduce((sum: number, e: any) => sum + (e.totalTokens || 0), 0)
-      if (agentEvents.length) {
-        lastActivity = agentEvents.sort((a: any, b: any) => 
-          new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime()
-        )[0].timestamp
-      }
-    } catch {}
-
-    // Projects from sources/projects.json
-    let projects: any[] = []
-    try {
-      const projRaw = await readFile(join(SOURCES_DIR, 'projects.json'), 'utf-8')
-      const { projects: allProjects = [] } = JSON.parse(projRaw)
-      projects = allProjects.filter((p: any) =>
-        p.team?.some((t: any) => t.agent === agentId) ||
-        p.owner === agentId
-      ).map((p: any) => ({
-        id: p.id,
-        name: p.name,
-        status: p.status,
-        progress: p.progress,
-        type: p.type,
-        team: p.team,
-        owner: p.owner
-      }))
-    } catch {}
-
-    return {
-      ...agent,
-      projects,
-      activeSessions: 0,
-      totalTokens,
-      maxPercentUsed: 0,
-      lastActivity,
-      lastHeartbeat: null,
-      sessions: [],
-      files,
-      channels: []
-    }
-  } catch (error: any) {
-    if (error.statusCode) throw error
-    console.error(`[/api/agents/${agentId}] Error:`, error.message)
-    throw createError({ statusCode: 500, statusMessage: 'Erreur récupération agent' })
+  return {
+    id: agent.id,
+    name: agent.name,
+    emoji: agent.emoji,
+    team: agent.team,
+    role: agent.role,
+    model: agent.model,
+    workspace: agent.workspace,
+    status: agent.status,
+    skills,
+    mattermost: { username: agent.mm_username, userId: agent.mm_user_id, token: agent.mm_token },
+    permissions: agent.permissions ? JSON.parse(agent.permissions) : null,
+    createdAt: agent.created_at,
+    projects,
+    files,
+    sessions,
+    ...live,
   }
 })

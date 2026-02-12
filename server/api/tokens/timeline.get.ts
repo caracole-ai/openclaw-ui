@@ -1,60 +1,42 @@
-import { readFile } from 'fs/promises'
-import { join } from 'path'
-import type { TokensSource, TokenEvent } from '~/types/token'
+/**
+ * GET /api/tokens/timeline
+ * Source: SQLite — computed aggregation, no pre-calculated aggregates needed
+ */
+import { getDb } from '~/server/utils/db'
 
-const SOURCES_DIR = join(process.env.HOME || '', '.openclaw/sources')
-
-export default defineEventHandler(async (event) => {
+export default defineEventHandler((event) => {
   const query = getQuery(event)
   const from = query.from as string | undefined
   const to = query.to as string | undefined
   const groupBy = (query.groupBy as string) || 'day'
   const agentFilter = query.agent as string | undefined
 
-  try {
-    const raw = await readFile(join(SOURCES_DIR, 'tokens.json'), 'utf-8')
-    const source: TokensSource = JSON.parse(raw)
+  const db = getDb()
 
-    let events: TokenEvent[] = source.usage || []
+  // Build GROUP BY expression
+  let groupExpr: string
+  switch (groupBy) {
+    case 'hour': groupExpr = "strftime('%Y-%m-%dT%H', created_at)"; break
+    case 'week': groupExpr = "strftime('%Y-%W', created_at)"; break
+    case 'month': groupExpr = "strftime('%Y-%m', created_at)"; break
+    default: groupExpr = "date(created_at)"; break
+  }
 
-    if (from) events = events.filter(e => e.timestamp >= from)
-    if (to) events = events.filter(e => e.timestamp <= to)
-    if (agentFilter) events = events.filter(e => e.agentId === agentFilter)
+  let sql = `SELECT ${groupExpr} as period, SUM(total_tokens) as tokens, SUM(total_cost) as cost, COUNT(*) as count FROM token_events WHERE 1=1`
+  const params: any[] = []
 
-    // Group by period
-    const grouped: Record<string, { tokens: number; cost: number; count: number }> = {}
+  if (from) { sql += ' AND created_at >= ?'; params.push(from) }
+  if (to) { sql += ' AND created_at <= ?'; params.push(to) }
+  if (agentFilter) { sql += ' AND agent_id = ?'; params.push(agentFilter) }
 
-    for (const evt of events) {
-      let key: string
-      const d = evt.timestamp.split('T')[0]
-      if (groupBy === 'hour') {
-        key = evt.timestamp.slice(0, 13)
-      } else if (groupBy === 'week') {
-        const date = new Date(evt.timestamp)
-        const weekStart = new Date(date)
-        weekStart.setDate(date.getDate() - date.getDay())
-        key = weekStart.toISOString().split('T')[0]
-      } else if (groupBy === 'month') {
-        key = d.slice(0, 7)
-      } else {
-        key = d
-      }
+  sql += ` GROUP BY period ORDER BY period`
 
-      if (!grouped[key]) grouped[key] = { tokens: 0, cost: 0, count: 0 }
-      grouped[key].tokens += evt.tokens.total
-      grouped[key].cost += evt.cost.total
-      grouped[key].count++
-    }
+  const timeline = db.prepare(sql).all(...params) as any[]
 
-    const timeline = Object.entries(grouped)
-      .sort((a, b) => a[0].localeCompare(b[0]))
-      .map(([period, data]) => ({ period, ...data }))
-
-    return { timeline, groupBy, totalEvents: events.length, timestamp: new Date().toISOString() }
-  } catch (err: any) {
-    if (err.code === 'ENOENT') {
-      return { timeline: [], groupBy, totalEvents: 0, timestamp: new Date().toISOString() }
-    }
-    throw createError({ statusCode: 500, statusMessage: 'Erreur lecture tokens', data: { error: err.message } })
+  return {
+    timeline: timeline.map(t => ({ period: t.period, tokens: t.tokens, cost: t.cost, count: t.count })),
+    groupBy,
+    totalEvents: timeline.reduce((s, t) => s + t.count, 0),
+    timestamp: new Date().toISOString(),
   }
 })

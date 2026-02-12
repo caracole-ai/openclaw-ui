@@ -1,7 +1,4 @@
-import { readFile } from 'fs/promises'
-import { join } from 'path'
-
-const OPENCLAW_DIR = join(process.env.HOME || '', '.openclaw')
+import { getDb } from '~/server/utils/db'
 
 // ─── LLM inference (if ANTHROPIC_API_KEY available) ────────────
 async function llmInfer(prompt: string, context: { teams: string[], skills: string[], projects: string[] }): Promise<any | null> {
@@ -177,7 +174,12 @@ export default defineEventHandler(async (event) => {
     throw createError({ statusCode: 400, statusMessage: 'prompt is required' })
   }
 
-  const context = await getExistingContext()
+  const db = getDb()
+  const context = {
+    teams: (db.prepare('SELECT id FROM teams').all() as any[]).map(t => t.id),
+    skills: (db.prepare('SELECT id FROM skills').all() as any[]).map(s => s.id),
+    projects: (db.prepare('SELECT id FROM projects').all() as any[]).map(p => p.id),
+  }
 
   // Try LLM first (if API key available), fallback to heuristics
   const llmResult = await llmInfer(prompt, context)

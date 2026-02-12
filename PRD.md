@@ -2,7 +2,7 @@
 
 **Date :** 2026-02-12  
 **Status :** En production (développement actif)  
-**Stack :** Vue 3 + Nuxt 3 + TypeScript + Tailwind CSS  
+**Stack :** Vue 3 + Nuxt 3 + TypeScript + Tailwind CSS + SQLite (better-sqlite3)  
 **Repo :** `caracole-ai/openclaw-ui` (`~/Desktop/coding-projects/openclaw-ui`)  
 **Config :** `caracole-ai/openclaw-config` (`~/.openclaw/`)
 
@@ -10,32 +10,42 @@
 
 ## Vision
 
-Dashboard de pilotage du système multi-agents OpenClaw. Source de vérité unique (`~/.openclaw/sources/*.json`), données live depuis le gateway, UI réactive.
+Dashboard de pilotage du système multi-agents OpenClaw. SQLite comme source de vérité unique, données live mergées depuis les session stores gateway, UI réactive avec polling.
 
 ---
 
 ## Architecture
 
-### Source de vérité
+### Data Layer
 
 ```
 ~/.openclaw/
 ├── openclaw.json                    # Config gateway (secrets — pas commitée)
-├── sources/                         # 🔴 SOURCE DE VÉRITÉ UNIQUE
-│   ├── agents.json                  # 4 agents : main, winston, amelia, claudio
-│   ├── projects.json                # Projets + états + team + updates[]
-│   ├── skills.json                  # Skills installés + assignments par agent
-│   ├── tokens.json                  # Usage tokens (events)
-│   ├── teams.json                   # Équipes
-│   └── events.json                  # Audit trail
-├── agents/{id}/sessions/            # Session stores gateway (données live)
+├── dashboard.db                     # 🔴 SOURCE DE VÉRITÉ UNIQUE (SQLite)
+├── agents/{id}/sessions/            # Session stores gateway (données live, read-only)
 │   └── sessions.json                # Tokens, modèle, contexte par session
 ├── workspace/                       # Workspace agent principal (Cloclo)
 ├── workspace-{name}/                # Workspaces agents (SOUL, IDENTITY, USER, etc.)
 ├── projects/{id}/                   # Fichiers projets partagés (docs, PRD, etc.)
 ├── scripts/                         # Scripts robustesse (create-agent, validate, etc.)
-└── templates/                       # Templates workspace (agent-code, agent-writing)
+└── sources/                         # ⚠️ JSON legacy (seeded into DB, non utilisés en runtime)
 ```
+
+#### SQLite Schema (11 tables)
+- `agents` — profil, team, modèle, workspace, Mattermost credentials
+- `skills` — skills installés
+- `agent_skills` — N:N agents ↔ skills
+- `teams` — équipes avec rules et default skills
+- `projects` — projets avec état, progress, github
+- `project_agents` — N:N projets ↔ agents avec rôle
+- `project_phases` — phases ordonnées d'un projet
+- `project_updates` — historique obligatoire (audit trail)
+- `token_events` — events de consommation (tokens + coûts)
+- `events` — audit trail système
+- `meta` — metadata (seeded timestamp, schema version)
+
+#### Live Data (gateway-owned, read-only)
+Les session stores (`agents/{id}/sessions/sessions.json`) sont écrits par le gateway. Les endpoints API les lisent et les mergent avec les données DB pour un résultat toujours frais.
 
 ### Agents
 
@@ -50,9 +60,11 @@ Communication inter-agents via Mattermost (http://localhost:8065, team OpenClaw)
 
 ### Règles
 
-- **Source de vérité unique** : tous les endpoints lisent/écrivent `sources/*.json`
-- **Historique obligatoire** : toute action projet → entrée `updates[]` dans projects.json
-- **Composables singleton** : state hoisted, flag `fetched`, pas de double-fetch
+- **SQLite = source de vérité** : tous les endpoints lisent/écrivent la DB
+- **Transactions ACID** : plus de race conditions sur les écritures concurrentes
+- **Session stores = read-only** : seul le gateway les écrit, l'API les lit
+- **Historique obligatoire** : toute action projet → INSERT dans `project_updates`
+- **Composables singleton** : state hoisted, polling 10s, pas de double-fetch
 - **WebSocket désactivé** : `WS_ENABLED=false` (pas de backend events encore)
 
 ---
@@ -60,19 +72,24 @@ Communication inter-agents via Mattermost (http://localhost:8065, team OpenClaw)
 ## UI — Pages
 
 ### `/` — Dashboard
-- Résumé agents (cards avec status, équipe, tokens)
+- Résumé agents (cards avec status, équipe, tokens live)
 - Projets en cours (kanban simplifié)
 - Stats globales
 
 ### `/agents` — Liste agents
-- Cards agents avec status, équipe, rôle
+- Cards agents avec status, équipe, rôle, tokens live
 - Filtres par team/status
+- Bouton "Nouvel agent" → `/agents/create-agent`
+- Polling 10s pour données fraîches
+
+### `/agents/create-agent` — Création agent
+- Deux tabs : ⚡ Quick (AI/heuristic inference) / 🔧 Custom (formulaire)
+- Pipeline : inference → preview → create (workspace + MM bot + DB + gateway config)
 
 ### `/agent/:id` — Détail agent
 - Header : nom, emoji, team badge, role badge, status
-- Stats live : sessions actives, tokens utilisés, contexte % (depuis gateway)
+- Stats live : sessions actives, tokens utilisés, contexte % (polling 10s)
 - Tabs : Projets assignés, Fichiers workspace, Sessions live, Channels
-- Source : `/api/agents/:id` + `/api/agents/:id/live`
 
 ### `/projets` — Liste projets
 - Kanban par état (backlog → done)
@@ -81,127 +98,107 @@ Communication inter-agents via Mattermost (http://localhost:8065, team OpenClaw)
 ### `/project/:id` — Détail projet
 - Infos projet, équipe, phases
 - Docs du projet (depuis `projects/{id}/`)
-- Historique d'activité (updates[])
+- Historique d'activité (depuis `project_updates` SQL)
 
 ### `/skills` — Skills
 - Skills installés avec assignments par agent
 - Filtrage par agent
 
 ### `/tokens` — Consommation tokens
-- Summary : KPIs globaux, top agents, top projets
-- Timeline : graphe d'usage dans le temps
+- Summary : KPIs globaux (tokens live + coûts DB), top agents, top projets
+- Timeline : agrégation SQL en temps réel (plus d'aggregats pré-calculés)
 
 ### `/tests` — Tests
-- **Unit tests** (3 suites) : Sources JSON, Intégrité cross-refs, Données live gateway
-- **E2E** : HTTP calls sur tous les endpoints API
-- Bouton run, summary bar, progress bar, suites dépliables
-- Résultat actuel : 36/36 unit ✅, 11/11 e2e ✅
+- **Suites** (3) : Data Integrity, Cross References, Schema Health — 9/9 ✅
+- **Endpoints** (9) : HTTP internes sur tous les endpoints API — 9/9 ✅
 
 ---
 
 ## API Endpoints
 
 ### Agents
-| Méthode | Route | Description |
-|---|---|---|
-| GET | `/api/agents` | Liste agents (filtres team, status) — `sources/agents.json` |
-| GET | `/api/agents/:id` | Détail agent + fichiers workspace + projets — `agents.json` + `projects.json` + `tokens.json` |
-| GET | `/api/agents/:id/live` | Sessions live, tokens, contexte % — `agents/{id}/sessions/sessions.json` |
-| GET | `/api/agents/live` | Stats agrégées tous agents (tokens globaux, sessions) — tous les session stores |
-| GET | `/api/agents/:id/files/:filename` | Lire un fichier workspace |
-| PUT | `/api/agents/:id/files/:filename` | Écrire un fichier workspace |
+| Méthode | Route | Source | Description |
+|---|---|---|---|
+| GET | `/api/agents` | DB + live | Liste agents enrichie (tokens, sessions live) |
+| GET | `/api/agents/:id` | DB + live + FS | Détail agent + fichiers workspace + projets + sessions |
+| POST | `/api/agents` | DB + script + config | Créer agent (workspace + MM bot + DB + gateway) |
+| POST | `/api/agents/infer` | DB | Inférence profil agent depuis texte libre |
+| GET | `/api/agents/:id/files/:filename` | DB + FS | Lire un fichier workspace |
+| PUT | `/api/agents/:id/files/:filename` | DB + FS | Écrire un fichier workspace |
 
 ### Projets
-| Méthode | Route | Description |
-|---|---|---|
-| GET | `/api/projects` | Liste projets — `sources/projects.json` |
-| POST | `/api/projects` | Créer projet |
-| GET | `/api/projects/:id` | Détail projet |
-| PATCH | `/api/projects/:id` | Modifier projet (status, updates, etc.) |
-| GET | `/api/projects/:id/docs` | Lister docs projet — `projects/{id}/` |
-| GET | `/api/projects/:id/docs/:filename` | Lire un doc projet |
-| GET | `/api/projects/:id/activity` | Historique activité |
-| POST | `/api/projects/:id/nudge` | Relancer un agent sur un projet |
+| Méthode | Route | Source | Description |
+|---|---|---|---|
+| GET | `/api/projects` | DB | Liste projets + phases + updates + agents |
+| POST | `/api/projects` | DB | Créer projet |
+| GET | `/api/projects/:id` | DB | Détail projet |
+| PATCH | `/api/projects/:id` | DB | Modifier projet |
+| GET | `/api/projects/:id/docs` | DB + FS | Lister docs projet |
+| GET | `/api/projects/:id/docs/:filename` | DB + FS | Lire un doc projet |
+| GET | `/api/projects/:id/activity` | DB + live | Activité projet (tokens live + updates DB) |
+| POST | `/api/projects/:id/nudge` | DB | Relancer agents sur un projet |
 
 ### Skills
-| Méthode | Route | Description |
-|---|---|---|
-| GET | `/api/skills` | Skills installés + assignments — `sources/skills.json` |
-| GET | `/api/skills/verify/:agentId/:skillId` | Vérifier qu'un skill fonctionne pour un agent |
+| Méthode | Route | Source | Description |
+|---|---|---|---|
+| GET | `/api/skills` | DB | Skills installés + assignments |
+| GET | `/api/skills/verify/:agentId/:skillId` | DB + FS | Vérifier skill opérationnel |
 
 ### Tokens
-| Méthode | Route | Description |
-|---|---|---|
-| GET | `/api/tokens/summary` | KPIs : top agents, top projets, agrégats |
-| GET | `/api/tokens/timeline` | Timeline d'usage (filtres from/to/agent/groupBy) |
-| POST | `/api/tokens/record` | Enregistrer un event de consommation |
+| Méthode | Route | Source | Description |
+|---|---|---|---|
+| GET | `/api/tokens/summary` | DB + live | KPIs : tokens live + coûts DB |
+| GET | `/api/tokens/timeline` | DB | Timeline agrégée (SQL GROUP BY) |
+| POST | `/api/tokens/record` | DB | Enregistrer event consommation |
 
-### Sources (générique)
+### Sources (legacy compat)
 | Méthode | Route | Description |
 |---|---|---|
-| GET | `/api/sources/:filename` | Lire un fichier source JSON brut |
-| PATCH | `/api/sources/:filename` | Patcher un fichier source JSON |
+| GET | `/api/sources/:filename` | Lecture DB formatée en JSON |
+| PATCH | `/api/sources/:filename` | **Deprecated** (410 Gone) |
 
 ### Tests
 | Méthode | Route | Description |
 |---|---|---|
-| GET | `/api/tests/suites` | Tests unitaires (sources, intégrité, live) |
-| GET | `/api/tests/endpoints` | Tests e2e (HTTP sur tous endpoints) |
+| GET | `/api/tests/suites` | Tests intégrité DB (3 suites, 9 tests) |
+| GET | `/api/tests/endpoints` | Tests e2e ($fetch interne, 9 endpoints) |
 
 ### Autres
 | Méthode | Route | Description |
 |---|---|---|
-| POST | `/api/sessions/send` | Envoyer un message dans une session OpenClaw |
+| POST | `/api/sessions/send` | Envoyer message dans une session OpenClaw |
+
+---
+
+## Server Utils
+
+| Fichier | Description |
+|---|---|
+| `server/utils/db.ts` | Singleton SQLite, schema, migration JSON→DB, helpers live data |
+
+### DB Initialization
+Au premier accès, `getDb()` :
+1. Crée la DB si elle n'existe pas
+2. Exécute le schema (11 tables + index)
+3. Si pas encore seeded : importe les 6 JSON sources en une transaction
+4. Marque comme seeded dans `meta`
+
+### Live Data Helpers
+- `getLiveStats(agentId)` → `{ totalTokens, activeSessions, maxPercentUsed, lastActivity }`
+- `getLiveSessions(agentId)` → sessions détaillées avec tokens/contexte
 
 ---
 
 ## Composables
 
-| Composable | Source | Description |
-|---|---|---|
-| `useAgents` | `/api/agents` | Liste agents, filtres, singleton |
-| `useProjects` | `/api/projects` | Liste projets, kanban columns, singleton |
-| `useSkills` | `/api/skills` | Skills installés + assignments, singleton |
-| `useTokens` | `/api/tokens/summary` + `/timeline` | KPIs tokens, timeline |
-| `useToast` | local | Système de toasts |
-| `useWebSocket` | — | Désactivé (`WS_ENABLED=false`) |
-
----
-
-## Composants (23)
-
-### Layout
-- `AppHeader` — Nav, stats agents, tokens live, session timer (5h, resets 00/05/10/15/20h Paris)
-- `Breadcrumb` — Fil d'ariane
-
-### Agents
-- `AgentCard` — Card agent avec status, team, rôle
-- `AgentsDashboard` — Grille d'agents
-- `AgentStatusBadge` — Badge status (active/idle/offline)
-- `AgentActivityChart` — Graphe activité
-- `AgentRoleChart` — Répartition par rôle
-
-### Projets
-- `ProjectCard` — Card projet avec progress, team badges
-- `ProjectsKanban` — Vue kanban des projets
-- `ProjectsSection` — Section projets du dashboard
-
-### Skills
-- `SkillCard` — Card skill avec assignments
-- `SkillVerifyButton` — Bouton vérification skill
-
-### Stats
-- `StatsOverview` — Vue d'ensemble stats
-- `StatsCard` / `StatCard` — Cards de statistiques
-- `CostChart` — Graphe de coûts
-
-### UI
-- `Skeleton` — Loader skeleton
-- `ToastContainer` / `ToastItem` — Système toasts
-- `MarkdownEditor` — Éditeur markdown
-- `AccordionItem` — Accordéon
-- `ActionButton` — Bouton d'action
-- `FlowStep` — Étape de flow
+| Composable | Source | Polling | Description |
+|---|---|---|---|
+| `useAgents` | `/api/agents` | 10s | Liste agents + live data, auto start/stop |
+| `useProjects` | `/api/projects` | — | Liste projets, kanban columns |
+| `useSkills` | `/api/skills` | — | Skills installés + assignments |
+| `useTokens` | `/api/tokens/summary` + `/timeline` | — | KPIs tokens, timeline |
+| `useToast` | local | — | Système de toasts |
+| `useWebSocket` | — | — | Désactivé (`WS_ENABLED=false`) |
 
 ---
 
@@ -209,10 +206,10 @@ Communication inter-agents via Mattermost (http://localhost:8065, team OpenClaw)
 
 | Fichier | Types principaux |
 |---|---|
-| `agent.ts` | `Agent`, `AgentTeam`, `AgentStatus`, `AgentRole`, `AgentsSource` |
+| `agent.ts` | `Agent`, `AgentDetail`, `AgentTeam`, `AgentStatus` |
 | `project.ts` | `Project`, `ProjectState`, `ProjectUpdate`, `ProjectTeamMember` |
-| `skill.ts` | `SkillManifest`, `SkillsSource`, `SkillAssignment` |
-| `token.ts` | `TokenUsage`, `TokenEvent`, `TokenSummary`, `TokensSource` |
+| `skill.ts` | `Skill`, `SkillsSource`, `SkillVerification` |
+| `token.ts` | `TokenEvent`, `TokenSummary`, `TimelinePoint` |
 | `team.ts` | `Team` |
 | `event.ts` | `SystemEvent` |
 | `websocket.ts` | `WSEventType` |
@@ -227,7 +224,7 @@ Le widget affiche :
 - ⏱️ Countdown jusqu'au prochain reset
 - Barre de progression (bleu → jaune → orange → rouge)
 - Heure du prochain reset
-- Tokens globaux live (rafraîchis toutes les 30s depuis `/api/agents/live`)
+- Tokens globaux live (depuis `useAgents` polling 10s)
 
 ---
 
@@ -235,11 +232,11 @@ Le widget affiche :
 
 | Script | Description |
 |---|---|
-| `create-project.sh` | Crée dossier projet + fichiers + met à jour projects.json |
-| `create-agent.sh` | Workspace + bot Mattermost + met à jour agents.json |
-| `assign-skill.sh` | Assigne un skill à un agent dans skills.json |
-| `add-agent-to-project.sh` | Met à jour agents.json et projects.json |
-| `validate-sources.sh` | Vérifie la cohérence de toutes les sources |
+| `create-project.sh` | Crée dossier projet + fichiers |
+| `create-agent.sh` | Workspace + bot Mattermost (appelé par POST /api/agents) |
+| `assign-skill.sh` | Assigne un skill à un agent |
+| `add-agent-to-project.sh` | Ajoute un agent à un projet |
+| `validate-sources.sh` | Vérifie la cohérence |
 | `record-token-usage.sh` | Enregistre un event token |
 | `sync-tokens.sh` | Sync depuis openclaw status |
 
@@ -253,7 +250,8 @@ Le widget affiche :
 4. **WS sans handler** : WebSocket upgrade sans backend → ECONNRESET → crash-loop
 5. **Composables non-singleton** : state dans la fonction → multi-fetch → flood d'erreurs
 6. **`contextTokens` dans session store** : c'est la taille de la fenêtre (200k), PAS l'usage
-7. **`/**/` dans commentaires TS** : les paths avec `*/` cassent esbuild (unterminated regex)
+7. **SQLite WAL mode** : la DB crée des fichiers `-wal` et `-shm` temporaires (gitignored)
+8. **Migration JSON→DB** : se fait automatiquement au premier boot, une seule fois
 
 ---
 
@@ -261,6 +259,7 @@ Le widget affiche :
 
 - [ ] Backend WebSocket events → réactiver `WS_ENABLED`
 - [ ] SOUL/IDENTITY editor (PUT endpoints existent, manque l'UI)
+- [ ] Page `/tests` UI
 - [ ] Dark mode
 - [ ] Responsive mobile
 - [ ] Tests e2e Playwright

@@ -1,58 +1,63 @@
-import { readFile } from 'fs/promises'
-import { join } from 'path'
-import type { TokensSource } from '~/types/token'
+/**
+ * GET /api/tokens/summary
+ * Source: SQLite (cost data) + live session stores (real-time tokens)
+ */
+import { getDb, getLiveStats } from '~/server/utils/db'
 
-const SOURCES_DIR = join(process.env.HOME || '', '.openclaw/sources')
+export default defineEventHandler(() => {
+  const db = getDb()
 
-export default defineEventHandler(async () => {
-  try {
-    const raw = await readFile(join(SOURCES_DIR, 'tokens.json'), 'utf-8')
-    const source: TokensSource = JSON.parse(raw)
+  // Live tokens from session stores
+  const agents = db.prepare('SELECT id FROM agents').all() as any[]
+  let liveTotalTokens = 0
+  let liveTotalSessions = 0
+  const liveByAgent = agents.map(a => {
+    const live = getLiveStats(a.id)
+    liveTotalTokens += live.totalTokens
+    liveTotalSessions += live.activeSessions
+    return { agentId: a.id, tokens: live.totalTokens, sessions: live.activeSessions }
+  })
 
-    // Compute current aggregates from usage if aggregates not pre-computed
-    const today = new Date().toISOString().split('T')[0]
-    const dailyAgg = source.aggregates?.daily?.[today]
+  // Cost data from DB
+  const costByAgent = db.prepare(`
+    SELECT agent_id, SUM(total_cost) as cost, SUM(total_tokens) as tokens, COUNT(*) as events
+    FROM token_events GROUP BY agent_id ORDER BY cost DESC
+  `).all() as any[]
 
-    // Top agents by cost
-    const agentTotals: Record<string, { tokens: number; cost: number }> = {}
-    for (const evt of source.usage || []) {
-      if (!agentTotals[evt.agentId]) agentTotals[evt.agentId] = { tokens: 0, cost: 0 }
-      agentTotals[evt.agentId].tokens += evt.tokens.total
-      agentTotals[evt.agentId].cost += evt.cost.total
-    }
+  const costByProject = db.prepare(`
+    SELECT project_id, SUM(total_cost) as cost, SUM(total_tokens) as tokens
+    FROM token_events WHERE project_id IS NOT NULL GROUP BY project_id ORDER BY cost DESC
+  `).all() as any[]
 
-    const topAgents = Object.entries(agentTotals)
-      .sort((a, b) => b[1].cost - a[1].cost)
-      .slice(0, 10)
-      .map(([id, data]) => ({ agentId: id, ...data }))
+  const totals = db.prepare('SELECT SUM(total_cost) as cost, SUM(total_tokens) as tokens, COUNT(*) as events FROM token_events').get() as any
 
-    // Top projects
-    const projectTotals: Record<string, { tokens: number; cost: number }> = {}
-    for (const evt of source.usage || []) {
-      if (!evt.projectId) continue
-      if (!projectTotals[evt.projectId]) projectTotals[evt.projectId] = { tokens: 0, cost: 0 }
-      projectTotals[evt.projectId].tokens += evt.tokens.total
-      projectTotals[evt.projectId].cost += evt.cost.total
-    }
+  // Merge live + cost for topAgents
+  const costMap: Record<string, number> = {}
+  for (const c of costByAgent) costMap[c.agent_id] = c.cost
 
-    const topProjects = Object.entries(projectTotals)
-      .sort((a, b) => b[1].cost - a[1].cost)
-      .slice(0, 10)
-      .map(([id, data]) => ({ projectId: id, ...data }))
+  const topAgents = liveByAgent
+    .map(a => ({ ...a, cost: costMap[a.agentId] || 0 }))
+    .sort((a, b) => b.tokens - a.tokens)
 
-    return {
-      tracking: source.tracking,
-      aggregates: source.aggregates,
-      todayAggregate: dailyAgg || null,
-      topAgents,
-      topProjects,
-      totalUsage: source.usage?.length || 0,
-      timestamp: new Date().toISOString()
-    }
-  } catch (err: any) {
-    if (err.code === 'ENOENT') {
-      return { tracking: null, aggregates: {}, todayAggregate: null, topAgents: [], topProjects: [], totalUsage: 0, timestamp: new Date().toISOString() }
-    }
-    throw createError({ statusCode: 500, statusMessage: 'Erreur lecture tokens', data: { error: err.message } })
+  const topProjects = costByProject.map(p => ({
+    projectId: p.project_id, tokens: p.tokens, cost: p.cost,
+  }))
+
+  // Today aggregate from DB
+  const today = new Date().toISOString().split('T')[0]
+  const todayRow = db.prepare(`
+    SELECT SUM(total_tokens) as tokens, SUM(total_cost) as cost, COUNT(*) as events
+    FROM token_events WHERE created_at >= ?
+  `).get(today) as any
+
+  return {
+    totalTokens: liveTotalTokens,
+    totalSessions: liveTotalSessions,
+    totalCost: totals?.cost || 0,
+    totalEvents: totals?.events || 0,
+    todayAggregate: todayRow?.tokens ? { totalTokens: todayRow.tokens, totalCost: todayRow.cost, events: todayRow.events } : null,
+    topAgents,
+    topProjects,
+    timestamp: new Date().toISOString(),
   }
 })

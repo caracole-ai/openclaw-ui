@@ -15,6 +15,7 @@
     "test:coverage": "vitest run --coverage"
   },
   "dependencies": {
+    "better-sqlite3": "^12.6.2",
     "chart.js": "^4.5.1",
     "nuxt": "^3.10.0",
     "vue": "^3.4.0",
@@ -23,6 +24,7 @@
   "devDependencies": {
     "@nuxtjs/tailwindcss": "^6.11.0",
     "@playwright/test": "^1.41.0",
+    "@types/better-sqlite3": "^7.6.13",
     "@vitejs/plugin-vue": "^5.0.3",
     "@vue/test-utils": "^2.4.4",
     "esbuild": "^0.20.0",

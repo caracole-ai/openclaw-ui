@@ -1,4 +1,4 @@
-import { ref, computed } from 'vue'
+import { ref, computed, onUnmounted } from 'vue'
 import type { Agent, AgentTeam } from '~/types/agent'
 
 // Singleton state — shared across all components
@@ -6,9 +6,14 @@ const agents = ref<Agent[]>([])
 const loading = ref(false)
 const error = ref<string | null>(null)
 let fetched = false
+let pollTimer: ReturnType<typeof setInterval> | null = null
+let subscribers = 0
+
+const POLL_INTERVAL = 10_000 // 10s
 
 async function fetchAgents(filters?: { team?: AgentTeam; status?: string }) {
-  loading.value = true
+  // Only show loading on first fetch
+  if (!fetched) loading.value = true
   error.value = null
   try {
     const params = new URLSearchParams()
@@ -26,6 +31,19 @@ async function fetchAgents(filters?: { team?: AgentTeam; status?: string }) {
   }
 }
 
+function startPolling() {
+  if (pollTimer || import.meta.server) return
+  fetchAgents()
+  pollTimer = setInterval(() => fetchAgents(), POLL_INTERVAL)
+}
+
+function stopPolling() {
+  if (pollTimer) {
+    clearInterval(pollTimer)
+    pollTimer = null
+  }
+}
+
 export function useAgents() {
   const sortedAgents = computed(() =>
     [...agents.value].sort((a, b) => a.name.localeCompare(b.name))
@@ -34,8 +52,9 @@ export function useAgents() {
   const agentsByTeam = computed(() => {
     const map: Record<string, Agent[]> = {}
     for (const agent of agents.value) {
-      if (!map[agent.team]) map[agent.team] = []
-      map[agent.team].push(agent)
+      const team = agent.team || 'other'
+      if (!map[team]) map[team] = []
+      map[team].push(agent)
     }
     return map
   })
@@ -44,21 +63,18 @@ export function useAgents() {
     return agents.value.find(a => a.id === id)
   }
 
-  // Listen for real-time updates (client only, once)
-  if (!import.meta.server && !fetched) {
-    const { on } = useWebSocket()
-    on('agent:updated', (data: Partial<Agent> & { id: string }) => {
-      const idx = agents.value.findIndex(a => a.id === data.id)
-      if (idx !== -1) {
-        agents.value[idx] = { ...agents.value[idx], ...data }
+  // Auto-manage polling lifecycle (client only)
+  if (!import.meta.server) {
+    subscribers++
+    startPolling()
+
+    onUnmounted(() => {
+      subscribers--
+      if (subscribers <= 0) {
+        subscribers = 0
+        stopPolling()
       }
     })
-    on('agent:created', (data: Agent) => {
-      agents.value.push(data)
-    })
-
-    // Initial fetch — once
-    fetchAgents()
   }
 
   return { agents, sortedAgents, agentsByTeam, getAgent, fetchAgents, loading, error }

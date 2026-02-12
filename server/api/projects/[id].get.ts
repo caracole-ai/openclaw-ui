@@ -1,30 +1,42 @@
 /**
  * GET /api/projects/:id
- * Source de vérité unique : sources/projects.json
+ * Source: SQLite
  */
-import { readFile } from 'fs/promises'
-import { join } from 'path'
+import { getDb } from '~/server/utils/db'
 
-const SOURCES_DIR = join(process.env.HOME || '', '.openclaw/sources')
-
-export default defineEventHandler(async (event) => {
+export default defineEventHandler((event) => {
   const id = getRouterParam(event, 'id')
-  if (!id) {
-    throw createError({ statusCode: 400, statusMessage: 'Project ID requis' })
-  }
+  if (!id) throw createError({ statusCode: 400, statusMessage: 'Project ID requis' })
 
-  try {
-    const raw = await readFile(join(SOURCES_DIR, 'projects.json'), 'utf-8')
-    const { projects } = JSON.parse(raw)
-    const project = projects.find((p: any) => p.id === id)
+  const db = getDb()
+  const p = db.prepare('SELECT * FROM projects WHERE id = ?').get(id) as any
+  if (!p) throw createError({ statusCode: 404, statusMessage: `Projet '${id}' non trouvé` })
 
-    if (!project) {
-      throw createError({ statusCode: 404, statusMessage: `Projet '${id}' non trouvé` })
-    }
+  const team = db.prepare('SELECT agent_id, role FROM project_agents WHERE project_id = ?').all(id) as any[]
+  const phases = db.prepare('SELECT * FROM project_phases WHERE project_id = ? ORDER BY sort_order').all(id) as any[]
+  const updates = db.prepare('SELECT * FROM project_updates WHERE project_id = ? ORDER BY created_at DESC').all(id) as any[]
 
-    return project
-  } catch (error: any) {
-    if (error.statusCode) throw error
-    throw createError({ statusCode: 500, statusMessage: 'Erreur lecture projet' })
+  return {
+    id: p.id,
+    name: p.name,
+    description: p.description,
+    type: p.type,
+    status: p.status,
+    state: p.state,
+    progress: p.progress,
+    lead: p.lead,
+    channel: p.channel,
+    channelId: p.channel_id,
+    workspace: p.workspace,
+    github: { repo: p.github_repo, created: !!p.github_created },
+    currentPhase: p.current_phase,
+    lastNudgeAt: p.last_nudge_at,
+    createdAt: p.created_at,
+    updatedAt: p.updated_at,
+    team: team.map(a => ({ agent: a.agent_id, role: a.role })),
+    agents: team.map(a => a.agent_id),
+    assignees: team.map(a => a.agent_id),
+    phases: phases.map(ph => ({ name: ph.name, status: ph.status, startedAt: ph.started_at, completedAt: ph.completed_at })),
+    updates: updates.map(u => ({ timestamp: u.created_at, agentId: u.agent_id, message: u.message, type: u.type })),
   }
 })

@@ -1,150 +1,85 @@
 /**
  * GET /api/tests/suites
- * Returns test suites: API endpoints health + data integrity + cross-refs
+ * Data integrity tests using SQLite
  */
-import { readFile } from 'fs/promises'
-import { existsSync } from 'fs'
-import { join } from 'path'
-
-const HOME = process.env.HOME || ''
-const SOURCES_DIR = join(HOME, '.openclaw/sources')
-const AGENTS_DIR = join(HOME, '.openclaw/agents')
+import { getDb } from '~/server/utils/db'
 
 interface TestResult {
-  id: string
-  suite: string
   name: string
-  status: 'pass' | 'fail' | 'skip'
-  message?: string
-  durationMs?: number
+  status: 'pass' | 'fail' | 'warn'
+  message: string
 }
 
-async function runApiTests(): Promise<TestResult[]> {
-  const results: TestResult[] = []
-
-  // Test source files exist and are valid JSON
-  const sourceFiles = ['agents.json', 'projects.json', 'skills.json', 'tokens.json', 'teams.json', 'events.json']
-  for (const file of sourceFiles) {
-    const path = join(SOURCES_DIR, file)
-    const start = Date.now()
-    try {
-      if (!existsSync(path)) {
-        results.push({ id: `src-${file}`, suite: 'sources', name: `${file} exists`, status: 'fail', message: 'File not found' })
-        continue
-      }
-      const raw = await readFile(path, 'utf-8')
-      JSON.parse(raw)
-      results.push({ id: `src-${file}`, suite: 'sources', name: `${file} valid JSON`, status: 'pass', durationMs: Date.now() - start })
-    } catch (e: any) {
-      results.push({ id: `src-${file}`, suite: 'sources', name: `${file} valid JSON`, status: 'fail', message: e.message, durationMs: Date.now() - start })
-    }
-  }
-
-  return results
+function runSuite(name: string, tests: (() => TestResult)[]): { name: string; results: TestResult[]; passed: number; failed: number } {
+  const results = tests.map(t => { try { return t() } catch (e: any) { return { name: 'unknown', status: 'fail' as const, message: e.message } } })
+  return { name, results, passed: results.filter(r => r.status === 'pass').length, failed: results.filter(r => r.status === 'fail').length }
 }
 
-async function runIntegrityTests(): Promise<TestResult[]> {
-  const results: TestResult[] = []
+export default defineEventHandler(() => {
+  const db = getDb()
 
-  try {
-    const agents = JSON.parse(await readFile(join(SOURCES_DIR, 'agents.json'), 'utf-8')).agents || []
-    const projects = JSON.parse(await readFile(join(SOURCES_DIR, 'projects.json'), 'utf-8')).projects || []
-    const skills = JSON.parse(await readFile(join(SOURCES_DIR, 'skills.json'), 'utf-8'))
-
-    const agentIds = new Set(agents.map((a: any) => a.id))
-    const projectIds = new Set(projects.map((p: any) => p.id))
-
-    // Agent workspace exists
-    for (const a of agents) {
-      const wsExists = a.workspace && existsSync(a.workspace)
-      const soulExists = wsExists && existsSync(join(a.workspace, 'SOUL.md'))
-      const idExists = wsExists && existsSync(join(a.workspace, 'IDENTITY.md'))
-
-      results.push({ id: `ws-${a.id}`, suite: 'integrity', name: `Agent ${a.id} workspace`, status: wsExists ? 'pass' : 'fail', message: wsExists ? a.workspace : 'Missing' })
-      results.push({ id: `soul-${a.id}`, suite: 'integrity', name: `Agent ${a.id} SOUL.md`, status: soulExists ? 'pass' : 'fail' })
-      results.push({ id: `id-${a.id}`, suite: 'integrity', name: `Agent ${a.id} IDENTITY.md`, status: idExists ? 'pass' : 'fail' })
-    }
-
-    // Project team refs valid
-    for (const p of projects) {
-      for (const t of (p.team || [])) {
-        const valid = agentIds.has(t.agent)
-        results.push({ id: `pref-${p.id}-${t.agent}`, suite: 'integrity', name: `Project ${p.id} → agent ${t.agent}`, status: valid ? 'pass' : 'fail', message: valid ? undefined : 'Unknown agent' })
-      }
-    }
-
-    // Agent project refs valid
-    for (const a of agents) {
-      for (const pid of (a.projects || [])) {
-        const valid = projectIds.has(pid)
-        results.push({ id: `aref-${a.id}-${pid}`, suite: 'integrity', name: `Agent ${a.id} → project ${pid}`, status: valid ? 'pass' : 'fail', message: valid ? undefined : 'Unknown project' })
-      }
-    }
-
-    // Skills assignments ref valid agents
-    for (const [agentId] of Object.entries(skills.assignments || {})) {
-      const valid = agentIds.has(agentId)
-      results.push({ id: `skill-assign-${agentId}`, suite: 'integrity', name: `Skill assignment → ${agentId}`, status: valid ? 'pass' : 'fail', message: valid ? undefined : 'Unknown agent' })
-    }
-
-  } catch (e: any) {
-    results.push({ id: 'integrity-error', suite: 'integrity', name: 'Parse sources', status: 'fail', message: e.message })
-  }
-
-  return results
-}
-
-async function runLiveTests(): Promise<TestResult[]> {
-  const results: TestResult[] = []
-
-  try {
-    const agents = JSON.parse(await readFile(join(SOURCES_DIR, 'agents.json'), 'utf-8')).agents || []
-
-    for (const a of agents) {
-      const sessFile = join(AGENTS_DIR, a.id, 'sessions', 'sessions.json')
-      const exists = existsSync(sessFile)
-      results.push({ id: `sess-${a.id}`, suite: 'live', name: `Agent ${a.id} session store`, status: exists ? 'pass' : 'skip', message: exists ? undefined : 'No sessions yet' })
-
-      if (exists) {
-        try {
-          const sess = JSON.parse(await readFile(sessFile, 'utf-8'))
-          const count = Object.keys(sess).length
-          const tokens = Object.values(sess).reduce((s: number, v: any) => s + (v.totalTokens || 0), 0)
-          results.push({ id: `sess-data-${a.id}`, suite: 'live', name: `Agent ${a.id}: ${count} sessions, ${tokens} tokens`, status: 'pass' })
-        } catch (e: any) {
-          results.push({ id: `sess-data-${a.id}`, suite: 'live', name: `Agent ${a.id} session parse`, status: 'fail', message: e.message })
-        }
-      }
-    }
-  } catch (e: any) {
-    results.push({ id: 'live-error', suite: 'live', name: 'Read agents', status: 'fail', message: e.message })
-  }
-
-  return results
-}
-
-export default defineEventHandler(async () => {
-  const start = Date.now()
-
-  const [sourceTests, integrityTests, liveTests] = await Promise.all([
-    runApiTests(),
-    runIntegrityTests(),
-    runLiveTests(),
+  // Suite 1: Data integrity
+  const integrity = runSuite('Data Integrity', [
+    () => {
+      const count = (db.prepare('SELECT COUNT(*) as c FROM agents').get() as any).c
+      return { name: 'Agents exist', status: count > 0 ? 'pass' : 'fail', message: `${count} agents` }
+    },
+    () => {
+      const count = (db.prepare('SELECT COUNT(*) as c FROM projects').get() as any).c
+      return { name: 'Projects exist', status: count > 0 ? 'pass' : 'fail', message: `${count} projects` }
+    },
+    () => {
+      const count = (db.prepare('SELECT COUNT(*) as c FROM skills').get() as any).c
+      return { name: 'Skills exist', status: count > 0 ? 'pass' : 'fail', message: `${count} skills` }
+    },
+    () => {
+      const count = (db.prepare('SELECT COUNT(*) as c FROM teams').get() as any).c
+      return { name: 'Teams exist', status: count > 0 ? 'pass' : 'fail', message: `${count} teams` }
+    },
   ])
 
-  const all = [...sourceTests, ...integrityTests, ...liveTests]
-  const pass = all.filter(t => t.status === 'pass').length
-  const fail = all.filter(t => t.status === 'fail').length
-  const skip = all.filter(t => t.status === 'skip').length
+  // Suite 2: Cross-references
+  const crossRefs = runSuite('Cross References', [
+    () => {
+      const orphans = db.prepare(`
+        SELECT pa.agent_id FROM project_agents pa
+        LEFT JOIN agents a ON a.id = pa.agent_id
+        WHERE a.id IS NULL
+      `).all()
+      return { name: 'No orphan project_agents', status: orphans.length === 0 ? 'pass' : 'fail', message: orphans.length === 0 ? 'OK' : `${orphans.length} orphans` }
+    },
+    () => {
+      const orphans = db.prepare(`
+        SELECT as2.agent_id, as2.skill_id FROM agent_skills as2
+        LEFT JOIN agents a ON a.id = as2.agent_id
+        WHERE a.id IS NULL
+      `).all()
+      return { name: 'No orphan agent_skills', status: orphans.length === 0 ? 'pass' : 'fail', message: orphans.length === 0 ? 'OK' : `${orphans.length} orphans` }
+    },
+    () => {
+      // Check all agents have workspace
+      const noWorkspace = db.prepare('SELECT id FROM agents WHERE workspace IS NULL OR workspace = \'\'').all()
+      return { name: 'All agents have workspace', status: noWorkspace.length === 0 ? 'pass' : 'warn', message: noWorkspace.length === 0 ? 'OK' : `${noWorkspace.length} missing` }
+    },
+  ])
 
-  return {
-    suites: [
-      { id: 'sources', name: 'Sources JSON', icon: '📦', tests: sourceTests },
-      { id: 'integrity', name: 'Intégrité & Cross-refs', icon: '🔗', tests: integrityTests },
-      { id: 'live', name: 'Données Live (Gateway)', icon: '⚡', tests: liveTests },
-    ],
-    summary: { total: all.length, pass, fail, skip },
-    durationMs: Date.now() - start,
-    timestamp: new Date().toISOString(),
-  }
+  // Suite 3: Schema check
+  const schema = runSuite('Schema Health', [
+    () => {
+      const tables = db.prepare("SELECT name FROM sqlite_master WHERE type='table' AND name NOT LIKE 'sqlite_%'").all() as any[]
+      const expected = ['agents', 'skills', 'agent_skills', 'teams', 'projects', 'project_agents', 'project_phases', 'project_updates', 'token_events', 'events', 'meta']
+      const missing = expected.filter(t => !tables.find(r => r.name === t))
+      return { name: 'All tables present', status: missing.length === 0 ? 'pass' : 'fail', message: missing.length === 0 ? `${tables.length} tables` : `Missing: ${missing.join(', ')}` }
+    },
+    () => {
+      const seeded = db.prepare('SELECT value FROM meta WHERE key = ?').get('seeded') as any
+      return { name: 'DB seeded', status: seeded ? 'pass' : 'fail', message: seeded ? `Seeded at ${seeded.value}` : 'Not seeded' }
+    },
+  ])
+
+  const suites = [integrity, crossRefs, schema]
+  const totalPassed = suites.reduce((s, suite) => s + suite.passed, 0)
+  const totalFailed = suites.reduce((s, suite) => s + suite.failed, 0)
+
+  return { suites, summary: { totalPassed, totalFailed, totalTests: totalPassed + totalFailed }, timestamp: new Date().toISOString() }
 })

@@ -1,8 +1,5 @@
 export interface SkillManifest {
-  dependencies: {
-    cli: string[]
-    env: string[]
-  }
+  dependencies: { cli: string[]; env: string[] }
   permissions: string[]
 }
 
@@ -13,10 +10,16 @@ export interface Skill {
   version: string
   source: string
   path: string
-  manifest: SkillManifest
+  manifest: SkillManifest | null
   installedAt: string
   installedBy: string
   status: 'active' | 'pending' | 'disabled'
+}
+
+export interface SkillsSource {
+  installed: Skill[]
+  assignments: Record<string, string[]>
+  timestamp?: string
 }
 
 export interface SkillVerification {
@@ -30,14 +33,4 @@ export interface SkillVerification {
     dependenciesMet: boolean
   }
   timestamp: string
-}
-
-export interface SkillsSource {
-  registry: {
-    official: string
-    trusted: string[]
-  }
-  installed: Skill[]
-  pending: Skill[]
-  assignments: Record<string, string[]>
 }

@@ -1,21 +1,5 @@
 import { ref } from 'vue'
-import type { TokenAggregate } from '~/types/token'
-
-interface TokenSummary {
-  tracking: any
-  aggregates: any
-  todayAggregate: TokenAggregate | null
-  topAgents: { agentId: string; tokens: number; cost: number }[]
-  topProjects: { projectId: string; tokens: number; cost: number }[]
-  totalUsage: number
-}
-
-interface TimelinePoint {
-  period: string
-  tokens: number
-  cost: number
-  count: number
-}
+import type { TokenSummary, TimelinePoint } from '~/types/token'
 
 // Singleton state
 const summary = ref<TokenSummary | null>(null)
@@ -52,9 +36,6 @@ async function fetchTimeline(params?: { from?: string; to?: string; groupBy?: st
 
 export function useTokens() {
   if (!import.meta.server && !fetched) {
-    const { on } = useWebSocket()
-    on('tokens:updated', () => fetchSummary())
-
     fetchSummary()
   }
 

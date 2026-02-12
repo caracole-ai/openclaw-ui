@@ -239,20 +239,26 @@ const tabs = [
   { id: 'channels', label: 'Channels' },
 ]
 
-// Fetch agent details + live session data
-const { data: agent, pending, error } = await useFetch(`/api/agents/${agentId.value}`)
-const { data: live } = await useFetch(`/api/agents/${agentId.value}/live`)
+// Fetch agent details (includes live session data)
+const { data: agent, pending, error, refresh } = await useFetch(`/api/agents/${agentId.value}`)
+
+// Auto-refresh every 10s (client only)
+let pollTimer: ReturnType<typeof setInterval> | null = null
+if (!import.meta.server) {
+  pollTimer = setInterval(() => refresh(), 10_000)
+  onUnmounted(() => { if (pollTimer) clearInterval(pollTimer) })
+}
 
 // Projects come from the agent API (source of truth: projects.json)
 const agentProjects = computed(() => agent.value?.projects || [])
 
-// Live data from gateway session stores
+// Live data now included in agent response
 const liveStats = computed(() => ({
-  totalTokens: live.value?.totalTokens || 0,
-  activeSessions: live.value?.activeSessions || 0,
-  maxPercentUsed: live.value?.maxPercentUsed || 0,
+  totalTokens: agent.value?.totalTokens || 0,
+  activeSessions: agent.value?.activeSessions || 0,
+  maxPercentUsed: agent.value?.maxPercentUsed || 0,
 }))
-const liveSessions = computed(() => live.value?.sessions || [])
+const liveSessions = computed(() => agent.value?.sessions || [])
 
 useHead({
   title: computed(() => `${agent.value?.name || agentId.value} - OpenClaw`)
@@ -347,7 +353,7 @@ const agentTeam = computed(() => {
 
 // Format last activity — prefer live data
 const lastActivityText = computed(() => {
-  const ts = live.value?.lastActivity || agent.value?.lastActivity
+  const ts = agent.value?.lastActivity
   if (!ts) return null
   const date = new Date(ts)
   const now = new Date()

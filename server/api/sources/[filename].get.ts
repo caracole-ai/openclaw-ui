@@ -1,23 +1,27 @@
-import { readFile } from 'fs/promises'
-import { join } from 'path'
+/**
+ * GET /api/sources/:filename
+ * Legacy compat — reads from SQLite and returns JSON-like structure
+ */
+import { getDb } from '~/server/utils/db'
 
-const ALLOWED_SOURCES = ['agents', 'projects', 'teams', 'skills', 'tokens', 'events']
-const SOURCES_DIR = join(process.env.HOME || '', '.openclaw/sources')
+const HANDLERS: Record<string, (db: any) => any> = {
+  agents: (db) => ({ agents: db.prepare('SELECT * FROM agents').all() }),
+  projects: (db) => ({ projects: db.prepare('SELECT * FROM projects').all() }),
+  skills: (db) => ({ installed: db.prepare('SELECT * FROM skills').all() }),
+  teams: (db) => {
+    const rows = db.prepare('SELECT * FROM teams').all() as any[]
+    const teams: Record<string, any> = {}
+    for (const r of rows) teams[r.id] = r
+    return { teams }
+  },
+  tokens: (db) => ({ usage: db.prepare('SELECT * FROM token_events ORDER BY created_at DESC LIMIT 100').all() }),
+  events: (db) => ({ events: db.prepare('SELECT * FROM events ORDER BY created_at DESC LIMIT 100').all() }),
+}
 
-export default defineEventHandler(async (event) => {
+export default defineEventHandler((event) => {
   const filename = getRouterParam(event, 'filename')
-
-  if (!filename || !ALLOWED_SOURCES.includes(filename)) {
-    throw createError({ statusCode: 400, statusMessage: `Source invalide. Autorisées: ${ALLOWED_SOURCES.join(', ')}` })
+  if (!filename || !HANDLERS[filename]) {
+    throw createError({ statusCode: 400, statusMessage: `Source invalide. Autorisées: ${Object.keys(HANDLERS).join(', ')}` })
   }
-
-  try {
-    const content = await readFile(join(SOURCES_DIR, `${filename}.json`), 'utf-8')
-    return JSON.parse(content)
-  } catch (err: any) {
-    if (err.code === 'ENOENT') {
-      throw createError({ statusCode: 404, statusMessage: `Source '${filename}.json' introuvable` })
-    }
-    throw createError({ statusCode: 500, statusMessage: 'Erreur lecture source', data: { error: err.message } })
-  }
+  return HANDLERS[filename](getDb())
 })

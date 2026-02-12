@@ -114,22 +114,16 @@ import { useWebSocket } from '~/composables/useWebSocket'
 const { agents: agentsList, fetchAgents } = useAgents()
 const { status: wsStatus } = useWebSocket()
 
-// Live stats from gateway session stores
-const liveData = ref<{ totalTokens: number } | null>(null)
-async function fetchLiveStats() {
-  try { liveData.value = await $fetch('/api/agents/live') } catch {}
-}
-
-// --- Agent stats ---
+// --- Agent stats (live data included in agents via polling) ---
 const stats = ref({ online: 0, idle: 0, offline: 0, totalTokens: 0 })
 
-watch([agentsList, liveData], ([list, live]) => {
+watch(agentsList, (list) => {
   if (!list.length) return
   stats.value = {
     online: list.filter((a: any) => a.status === 'active').length,
     idle: list.filter((a: any) => a.status === 'idle').length,
     offline: list.filter((a: any) => a.status === 'offline' || a.status === 'error').length,
-    totalTokens: live?.totalTokens ?? 0,
+    totalTokens: list.reduce((sum: number, a: any) => sum + (a.totalTokens || 0), 0),
   }
   lastRefresh.value = new Date()
 }, { immediate: true })
@@ -212,7 +206,7 @@ const lastRefreshText = computed(() => {
 async function refresh() {
   pending.value = true
   try {
-    await Promise.all([fetchAgents(), fetchLiveStats()])
+    await fetchAgents()
   } catch (e) {
     console.error('[AppHeader] Refresh error:', e)
   } finally {

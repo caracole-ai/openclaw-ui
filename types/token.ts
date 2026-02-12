@@ -1,15 +1,3 @@
-export interface TokenUsage {
-  input: number
-  output: number
-  total: number
-}
-
-export interface TokenCost {
-  input: number
-  output: number
-  total: number
-}
-
 export interface TokenEvent {
   id: string
   timestamp: string
@@ -18,32 +6,24 @@ export interface TokenEvent {
   skillId?: string
   sessionId?: string
   model: string
-  tokens: TokenUsage
-  cost: TokenCost
-  context?: {
-    action: string
-    trigger: string
-  }
+  tokens: { input: number; output: number; total: number }
+  cost: { input: number; output: number; total: number }
 }
 
-export interface TokenAggregate {
+export interface TokenSummary {
   totalTokens: number
+  totalSessions: number
   totalCost: number
-  byAgent: Record<string, { tokens: number; cost: number }>
-  byProject: Record<string, { tokens: number; cost: number }>
-  bySkill: Record<string, { tokens: number; cost: number }>
+  totalEvents: number
+  todayAggregate: { totalTokens: number; totalCost: number; events: number } | null
+  topAgents: Array<{ agentId: string; tokens: number; sessions: number; cost: number }>
+  topProjects: Array<{ projectId: string; tokens: number; cost: number }>
+  timestamp: string
 }
 
-export interface TokensSource {
-  tracking: {
-    enabled: boolean
-    granularity: string[]
-    retentionDays: number
-  }
-  usage: TokenEvent[]
-  aggregates: {
-    daily: Record<string, TokenAggregate>
-    weekly: Record<string, TokenAggregate>
-    monthly: Record<string, TokenAggregate>
-  }
+export interface TimelinePoint {
+  period: string
+  tokens: number
+  cost: number
+  count: number
 }
