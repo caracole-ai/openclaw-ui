@@ -16,13 +16,15 @@
         <div>
           <h3 class="font-semibold text-gray-900">{{ project.name }}</h3>
           <div v-if="teamMembers.length" class="flex items-center gap-1 mt-1">
-            <span
+            <NuxtLink
               v-for="member in teamMembers"
               :key="member"
-              class="inline-flex items-center gap-1 px-2 py-0.5 text-xs font-medium rounded-full bg-blue-50 text-blue-700"
+              :to="`/agent/${member}`"
+              class="inline-flex items-center gap-1 px-2 py-0.5 text-xs font-medium rounded-full bg-blue-50 text-blue-700 hover:bg-blue-100 transition-colors"
+              @click.stop
             >
               {{ getAgentEmoji(member) }} {{ member }}
-            </span>
+            </NuxtLink>
           </div>
         </div>
       </div>

@@ -44,13 +44,15 @@
 
             <!-- Team badges -->
             <div class="flex flex-wrap gap-1 mb-2">
-              <span
+              <NuxtLink
                 v-for="member in getTeamMembers(project)"
                 :key="member"
-                class="inline-flex items-center px-1.5 py-0.5 text-[10px] font-medium rounded-full bg-blue-50 text-blue-700"
+                :to="`/agent/${member}`"
+                class="inline-flex items-center px-1.5 py-0.5 text-[10px] font-medium rounded-full bg-blue-50 text-blue-700 hover:bg-blue-100 transition-colors"
+                @click.stop
               >
                 {{ AGENT_EMOJIS[member] || '🤖' }} {{ member }}
-              </span>
+              </NuxtLink>
             </div>
 
             <!-- Progress -->

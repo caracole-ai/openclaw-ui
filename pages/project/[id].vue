@@ -223,24 +223,25 @@
                   <div class="w-8 h-8 rounded-full bg-gradient-to-br from-blue-400 to-purple-500 flex items-center justify-center text-white text-xs font-bold">
                     {{ member.agent.charAt(0).toUpperCase() }}
                   </div>
-                  <div class="flex-1 min-w-0">
-                    <div class="font-medium text-sm text-gray-900 truncate">{{ member.agent }}</div>
+                  <NuxtLink :to="`/agent/${member.agent}`" class="flex-1 min-w-0 hover:opacity-75 transition-opacity">
+                    <div class="font-medium text-sm text-blue-700 truncate">{{ member.agent }}</div>
                     <div class="text-xs text-gray-500 truncate">{{ member.role }}</div>
-                  </div>
+                  </NuxtLink>
                 </div>
               </template>
               <!-- Fallback to assignees -->
               <template v-else-if="project.assignees?.length">
-                <div 
+                <NuxtLink 
                   v-for="agent in project.assignees" 
                   :key="agent"
-                  class="flex items-center gap-3 p-2 rounded-lg bg-gray-50"
+                  :to="`/agent/${agent}`"
+                  class="flex items-center gap-3 p-2 rounded-lg bg-gray-50 hover:bg-gray-100 transition-colors"
                 >
                   <div class="w-8 h-8 rounded-full bg-gradient-to-br from-gray-400 to-gray-500 flex items-center justify-center text-white text-xs font-bold">
                     {{ agent.charAt(0).toUpperCase() }}
                   </div>
-                  <div class="font-medium text-sm text-gray-900 truncate">{{ agent }}</div>
-                </div>
+                  <div class="font-medium text-sm text-blue-700 truncate">{{ agent }}</div>
+                </NuxtLink>
               </template>
             </div>
           </div>

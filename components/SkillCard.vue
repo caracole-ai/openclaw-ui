@@ -38,13 +38,14 @@
       <div v-if="assignedAgents.length > 0" class="mb-3">
         <div class="text-xs text-gray-400 mb-1.5">Agents</div>
         <div class="flex flex-wrap gap-1">
-          <span
+          <NuxtLink
             v-for="agent in assignedAgents"
             :key="agent"
-            class="inline-flex items-center rounded-full bg-blue-100 text-blue-700 px-2 py-0.5 text-[10px] font-medium"
+            :to="`/agent/${agent}`"
+            class="inline-flex items-center rounded-full bg-blue-100 text-blue-700 px-2 py-0.5 text-[10px] font-medium hover:bg-blue-200 transition-colors"
           >
             {{ agent }}
-          </span>
+          </NuxtLink>
         </div>
       </div>
 

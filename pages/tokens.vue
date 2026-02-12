@@ -162,7 +162,7 @@
                 class="group"
               >
                 <div class="flex items-center justify-between mb-1">
-                  <span class="text-sm font-medium text-gray-700 truncate">{{ agent.agentId }}</span>
+                  <NuxtLink :to="`/agent/${agent.agentId}`" class="text-sm font-medium text-blue-700 hover:text-blue-900 truncate">{{ agent.agentId }}</NuxtLink>
                   <span class="text-xs text-gray-500 shrink-0 ml-2">
                     {{ formatTokens(agent.tokens) }} &middot; {{ formatCost(agent.cost) }}
                   </span>
@@ -190,7 +190,7 @@
                 class="group"
               >
                 <div class="flex items-center justify-between mb-1">
-                  <span class="text-sm font-medium text-gray-700 truncate">{{ project.projectId }}</span>
+                  <NuxtLink :to="`/project/${project.projectId}`" class="text-sm font-medium text-green-700 hover:text-green-900 truncate">{{ project.projectId }}</NuxtLink>
                   <span class="text-xs text-gray-500 shrink-0 ml-2">
                     {{ formatTokens(project.tokens) }} &middot; {{ formatCost(project.cost) }}
                   </span>
