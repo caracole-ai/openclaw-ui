@@ -11,7 +11,7 @@ const SOURCES_DIR = join(HOME, '.openclaw/sources')
 
 // Debounce multiple rapid changes
 let debounceTimer: NodeJS.Timeout | null = null
-const DEBOUNCE_MS = 1000
+const DEBOUNCE_MS = 500
 
 // Track WebSocket clients for broadcasting
 const wsClients = new Set<any>()
