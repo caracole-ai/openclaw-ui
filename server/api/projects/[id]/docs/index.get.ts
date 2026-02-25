@@ -7,26 +7,41 @@ import { existsSync } from 'fs'
 import { join, relative } from 'path'
 import { getDb } from '~/server/utils/db'
 
-async function scanDir(dir: string, base: string): Promise<any[]> {
+async function scanDir(dir: string, base: string, depth: number = 0): Promise<any[]> {
   const entries = await readdir(dir, { withFileTypes: true })
   const results: any[] = []
   for (const entry of entries) {
     const fullPath = join(dir, entry.name)
+    const relPath = relative(base, fullPath)
+    
     if (entry.isDirectory()) {
-      results.push(...await scanDir(fullPath, base))
+      // Exclure node_modules, .git, et autres dossiers système
+      if (entry.name === 'node_modules' || entry.name === '.git' || entry.name.startsWith('.')) {
+        continue
+      }
+      
+      // Autoriser uniquement racine (depth=0) et /docs ou /doc
+      if (depth === 0 && (entry.name === 'docs' || entry.name === 'doc')) {
+        results.push(...await scanDir(fullPath, base, depth + 1))
+      } else if (depth > 0 && relPath.startsWith('docs/') || relPath.startsWith('doc/')) {
+        // Continuer dans les sous-dossiers de docs/doc
+        results.push(...await scanDir(fullPath, base, depth + 1))
+      }
     } else if (entry.name.endsWith('.md')) {
-      const s = await stat(fullPath)
-      const relPath = relative(base, fullPath)
-      const folder = relative(base, dir) || null
-      results.push({
-        name: entry.name,
-        path: relPath,
-        filename: entry.name,
-        folder,
-        size: s.size,
-        modified: s.mtime.toISOString(),
-        modifiedAt: s.mtime.toISOString(),
-      })
+      // Accepter les .md à la racine (depth=0) ou dans docs/doc
+      if (depth === 0 || relPath.startsWith('docs/') || relPath.startsWith('doc/')) {
+        const s = await stat(fullPath)
+        const folder = relative(base, dir) || null
+        results.push({
+          name: entry.name,
+          path: relPath,
+          filename: entry.name,
+          folder,
+          size: s.size,
+          modified: s.mtime.toISOString(),
+          modifiedAt: s.mtime.toISOString(),
+        })
+      }
     }
   }
   return results

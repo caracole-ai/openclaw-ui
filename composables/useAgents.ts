@@ -8,6 +8,7 @@ const error = ref<string | null>(null)
 let fetched = false
 let pollTimer: ReturnType<typeof setInterval> | null = null
 let subscribers = 0
+let wsListenerRegistered = false
 
 const POLL_INTERVAL = 10_000 // 10s
 
@@ -67,6 +68,16 @@ export function useAgents() {
   if (!import.meta.server) {
     subscribers++
     startPolling()
+
+    // Listen for WebSocket data updates (singleton pattern)
+    if (!wsListenerRegistered) {
+      wsListenerRegistered = true
+      const { on } = useWebSocket()
+      on('data:updated', () => {
+        console.log('[useAgents] Data updated via WebSocket, refreshing...')
+        fetchAgents()
+      })
+    }
 
     onUnmounted(() => {
       subscribers--

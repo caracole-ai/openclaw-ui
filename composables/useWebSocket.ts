@@ -10,7 +10,7 @@ let ws: WebSocket | null = null
 let attempted = false
 
 // Set to true to enable WebSocket connection (requires a real WS backend)
-const WS_ENABLED = false
+const WS_ENABLED = true
 
 function connect() {
   if (!WS_ENABLED) return
@@ -24,7 +24,7 @@ function connect() {
   try {
     const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:'
     const wsPort = import.meta.env.VITE_WS_PORT || window.location.port || '8080'
-    ws = new WebSocket(`${protocol}//${window.location.hostname}:${wsPort}/api/events`)
+    ws = new WebSocket(`${protocol}//${window.location.hostname}:${wsPort}/api/ws`)
 
     ws.onopen = () => {
       status.value = 'connected'

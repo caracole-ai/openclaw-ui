@@ -36,6 +36,15 @@ async function fetchTimeline(params?: { from?: string; to?: string; groupBy?: st
 
 export function useTokens() {
   if (!import.meta.server && !fetched) {
+    const { on } = useWebSocket()
+    on('data:updated', () => {
+      console.log('[useTokens] Data updated via WebSocket, refreshing...')
+      fetchSummary()
+      if (timeline.value.length > 0) {
+        fetchTimeline()
+      }
+    })
+    
     fetchSummary()
   }
 

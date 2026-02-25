@@ -37,6 +37,10 @@ export function useSkills() {
     on('skill:installed', () => fetchSkills())
     on('skill:assigned', () => fetchSkills())
     on('skill:unassigned', () => fetchSkills())
+    on('data:updated', () => {
+      console.log('[useSkills] Data updated via WebSocket, refreshing...')
+      fetchSkills()
+    })
 
     fetchSkills()
   }
