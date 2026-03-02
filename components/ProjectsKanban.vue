@@ -133,8 +133,8 @@ function getIcon(state: ProjectState): string {
 }
 
 function getProgressPercent(project: Project): number {
-  // Priority 1: Use explicit progress field from DB if set
-  if (project.progress != null && project.progress >= 0 && project.progress <= 100) {
+  // Priority 1: Use explicit progress field from DB if set and > 0
+  if (project.progress != null && project.progress > 0 && project.progress <= 100) {
     return project.progress
   }
   
