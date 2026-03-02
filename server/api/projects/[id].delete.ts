@@ -34,10 +34,11 @@ export default defineEventHandler(async (event) => {
       db.prepare('DELETE FROM projects WHERE id = ?').run(id)
       
       // Log event
-      db.prepare('INSERT INTO events (type, project_id, details, created_at) VALUES (?, ?, ?, datetime(\'now\'))').run(
+      db.prepare('INSERT INTO events (id, type, actor, data, created_at) VALUES (?, ?, ?, ?, datetime(\'now\'))').run(
+        `event-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
         'project:deleted',
-        id,
-        `Project ${id} deleted`
+        'dashboard',
+        JSON.stringify({ projectId: id, message: `Project ${id} deleted` })
       )
     })
 
