@@ -22,7 +22,7 @@ export default defineEventHandler(async (event) => {
   // Check agent exists
   const agent = db.prepare('SELECT id FROM agents WHERE id = ?').get(agentId)
   if (!agent) {
-    throw createError({ statusCode: 404, statusMessage: `Agent '${agentId}' non trouvé' })
+    throw createError({ statusCode: 404, statusMessage: `Agent '${agentId}' non trouvé` })
   }
 
   // Remove skill assignment
