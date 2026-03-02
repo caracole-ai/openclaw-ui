@@ -153,52 +153,136 @@
           </div>
 
           <!-- Tab: Skills -->
-          <div v-if="activeTab === 'skills'">
-            <!-- Agent skills -->
-            <div v-if="agent.skills && agent.skills.length" class="mb-6">
-              <h3 class="text-sm font-medium text-gray-700 mb-3">Skills assignés ({{ agent.skills.length }})</h3>
-              <div class="grid grid-cols-1 md:grid-cols-2 gap-2">
-                <div
-                  v-for="skillId in agent.skills"
-                  :key="skillId"
-                  class="flex items-center justify-between p-3 bg-gray-50 rounded-lg border group hover:bg-red-50 hover:border-red-200 transition-colors"
+          <div v-if="activeTab === 'skills'" class="space-y-6">
+            <!-- Drag & Drop Editor -->
+            <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+              
+              <!-- Assigned Skills (Left Column) -->
+              <div class="bg-gradient-to-br from-blue-50 to-indigo-50 rounded-xl border-2 border-blue-200 p-4">
+                <div class="flex items-center justify-between mb-4">
+                  <h3 class="text-sm font-bold text-blue-900 flex items-center gap-2">
+                    <span class="text-xl">✨</span>
+                    Skills assignés
+                  </h3>
+                  <span class="px-2 py-1 text-xs font-bold bg-blue-600 text-white rounded-full">
+                    {{ agent.skills?.length || 0 }}
+                  </span>
+                </div>
+                
+                <div 
+                  @drop="handleDrop($event, 'assigned')"
+                  @dragover.prevent
+                  @dragenter.prevent="dragOverZone = 'assigned'"
+                  @dragleave="dragOverZone = null"
+                  class="min-h-[300px] space-y-2 transition-all rounded-lg p-3"
+                  :class="dragOverZone === 'assigned' ? 'bg-blue-100 ring-2 ring-blue-400' : 'bg-white/50'"
                 >
-                  <div class="flex items-center gap-2">
-                    <span class="text-lg">📦</span>
-                    <span class="font-medium text-gray-900">{{ skillId }}</span>
-                  </div>
-                  <button
-                    @click="removeSkill(skillId)"
-                    class="text-red-500 hover:text-red-700 opacity-0 group-hover:opacity-100 transition-opacity text-sm"
+                  <div
+                    v-for="skillId in agent.skills"
+                    :key="'assigned-' + skillId"
+                    draggable="true"
+                    @dragstart="handleDragStart($event, skillId, 'assigned')"
+                    @dragend="handleDragEnd"
+                    class="flex items-center justify-between p-3 bg-white rounded-lg border-2 shadow-sm cursor-grab active:cursor-grabbing hover:shadow-md hover:scale-[1.02] transition-all group"
+                    :class="draggingSkill === skillId ? 'opacity-50 scale-95' : ''"
                   >
-                    ✕
-                  </button>
+                    <div class="flex items-center gap-3">
+                      <span class="text-2xl">📦</span>
+                      <div>
+                        <div class="font-semibold text-gray-900">{{ getSkillName(skillId) }}</div>
+                        <div class="text-xs text-gray-500">{{ getSkillDescription(skillId) }}</div>
+                      </div>
+                    </div>
+                    <div class="flex items-center gap-2">
+                      <span class="text-xs text-gray-400 opacity-0 group-hover:opacity-100 transition-opacity">
+                        Drag →
+                      </span>
+                      <button
+                        @click.stop="removeSkill(skillId)"
+                        class="w-6 h-6 flex items-center justify-center rounded-full bg-red-100 text-red-600 hover:bg-red-200 opacity-0 group-hover:opacity-100 transition-opacity"
+                        title="Retirer"
+                      >
+                        ✕
+                      </button>
+                    </div>
+                  </div>
+                  
+                  <!-- Empty state -->
+                  <div v-if="!agent.skills || agent.skills.length === 0" class="flex flex-col items-center justify-center py-12 text-gray-400">
+                    <span class="text-4xl mb-2">📭</span>
+                    <span class="text-sm">Aucun skill assigné</span>
+                    <span class="text-xs">← Glissez des skills ici</span>
+                  </div>
+                </div>
+              </div>
+              
+              <!-- Available Skills (Right Column) -->
+              <div class="bg-gradient-to-br from-gray-50 to-slate-50 rounded-xl border-2 border-gray-300 p-4">
+                <div class="flex items-center justify-between mb-4">
+                  <h3 class="text-sm font-bold text-gray-700 flex items-center gap-2">
+                    <span class="text-xl">📚</span>
+                    Skills disponibles
+                  </h3>
+                  <span class="px-2 py-1 text-xs font-bold bg-gray-600 text-white rounded-full">
+                    {{ availableSkills.length }}
+                  </span>
+                </div>
+                
+                <div 
+                  @drop="handleDrop($event, 'available')"
+                  @dragover.prevent
+                  @dragenter.prevent="dragOverZone = 'available'"
+                  @dragleave="dragOverZone = null"
+                  class="min-h-[300px] space-y-2 transition-all rounded-lg p-3 overflow-y-auto max-h-[500px]"
+                  :class="dragOverZone === 'available' ? 'bg-gray-100 ring-2 ring-gray-400' : 'bg-white/50'"
+                >
+                  <div
+                    v-for="skill in availableSkills"
+                    :key="'available-' + skill.id"
+                    draggable="true"
+                    @dragstart="handleDragStart($event, skill.id, 'available')"
+                    @dragend="handleDragEnd"
+                    class="flex items-center justify-between p-3 bg-white rounded-lg border-2 shadow-sm cursor-grab active:cursor-grabbing hover:shadow-md hover:scale-[1.02] transition-all group"
+                    :class="draggingSkill === skill.id ? 'opacity-50 scale-95' : ''"
+                  >
+                    <div class="flex items-center gap-3">
+                      <span class="text-2xl">📦</span>
+                      <div>
+                        <div class="font-semibold text-gray-900">{{ skill.name || skill.id }}</div>
+                        <div v-if="skill.description" class="text-xs text-gray-500 line-clamp-1">{{ skill.description }}</div>
+                      </div>
+                    </div>
+                    <div class="flex items-center gap-2">
+                      <span class="text-xs text-gray-400 opacity-0 group-hover:opacity-100 transition-opacity">
+                        ← Drag
+                      </span>
+                      <button
+                        @click.stop="addSkill(skill.id)"
+                        class="w-6 h-6 flex items-center justify-center rounded-full bg-blue-100 text-blue-600 hover:bg-blue-200 opacity-0 group-hover:opacity-100 transition-opacity"
+                        title="Ajouter"
+                      >
+                        +
+                      </button>
+                    </div>
+                  </div>
+                  
+                  <!-- Empty state -->
+                  <div v-if="availableSkills.length === 0" class="flex flex-col items-center justify-center py-12 text-gray-400">
+                    <span class="text-4xl mb-2">✅</span>
+                    <span class="text-sm">Tous les skills sont assignés</span>
+                  </div>
                 </div>
               </div>
             </div>
             
-            <!-- Available skills to add -->
-            <div>
-              <h3 class="text-sm font-medium text-gray-700 mb-3">Skills disponibles</h3>
-              <div v-if="availableSkills.length" class="grid grid-cols-1 md:grid-cols-2 gap-2">
-                <button
-                  v-for="skill in availableSkills"
-                  :key="skill.id"
-                  @click="addSkill(skill.id)"
-                  class="flex items-center justify-between p-3 bg-white rounded-lg border hover:bg-blue-50 hover:border-blue-200 transition-colors text-left"
-                >
-                  <div class="flex items-center gap-2">
-                    <span class="text-lg">📦</span>
-                    <div>
-                      <div class="font-medium text-gray-900">{{ skill.name || skill.id }}</div>
-                      <div v-if="skill.description" class="text-xs text-gray-500 line-clamp-1">{{ skill.description }}</div>
-                    </div>
-                  </div>
-                  <span class="text-blue-500">+</span>
-                </button>
-              </div>
-              <div v-else class="text-center py-8 text-gray-500">
-                Tous les skills sont déjà assignés
+            <!-- Legend -->
+            <div class="bg-gray-50 border rounded-lg p-4">
+              <div class="flex items-start gap-3 text-sm text-gray-600">
+                <span class="text-xl">💡</span>
+                <div>
+                  <strong class="text-gray-900">Glissez-déposez</strong> les skills entre les deux colonnes pour les assigner ou les retirer.
+                  Vous pouvez aussi utiliser les boutons <span class="inline-flex items-center justify-center w-4 h-4 rounded-full bg-blue-100 text-blue-600 text-xs">+</span> et <span class="inline-flex items-center justify-center w-4 h-4 rounded-full bg-red-100 text-red-600 text-xs">✕</span>.
+                </div>
               </div>
             </div>
           </div>
@@ -324,6 +408,48 @@ const liveStats = computed(() => ({
 }))
 const liveSessions = computed(() => agent.value?.sessions || [])
 
+// Drag & Drop state
+const draggingSkill = ref<string | null>(null)
+const dragOverZone = ref<'assigned' | 'available' | null>(null)
+const dragSource = ref<'assigned' | 'available' | null>(null)
+
+function handleDragStart(event: DragEvent, skillId: string, source: 'assigned' | 'available') {
+  draggingSkill.value = skillId
+  dragSource.value = source
+  if (event.dataTransfer) {
+    event.dataTransfer.effectAllowed = 'move'
+    event.dataTransfer.setData('text/plain', skillId)
+  }
+}
+
+function handleDragEnd() {
+  draggingSkill.value = null
+  dragOverZone.value = null
+  dragSource.value = null
+}
+
+async function handleDrop(event: DragEvent, targetZone: 'assigned' | 'available') {
+  event.preventDefault()
+  const skillId = event.dataTransfer?.getData('text/plain')
+  
+  if (!skillId || !dragSource.value) return
+  
+  // Ignore drop if same zone
+  if (dragSource.value === targetZone) {
+    handleDragEnd()
+    return
+  }
+  
+  // Add or remove based on target
+  if (targetZone === 'assigned') {
+    await addSkill(skillId)
+  } else {
+    await removeSkill(skillId)
+  }
+  
+  handleDragEnd()
+}
+
 // Skills management
 async function addSkill(skillId: string) {
   try {
@@ -349,6 +475,17 @@ async function removeSkill(skillId: string) {
     console.error('Failed to remove skill:', err)
     alert(`Erreur: ${err.message || 'Impossible de retirer le skill'}`)
   }
+}
+
+// Get skill info from allSkills
+function getSkillName(skillId: string): string {
+  const skill = allSkills.value.find(s => s.id === skillId)
+  return skill?.name || skillId
+}
+
+function getSkillDescription(skillId: string): string {
+  const skill = allSkills.value.find(s => s.id === skillId)
+  return skill?.description ? skill.description.substring(0, 60) + (skill.description.length > 60 ? '...' : '') : ''
 }
 
 useHead({
