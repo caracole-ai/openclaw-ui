@@ -532,12 +532,10 @@ useHead({
   title: computed(() => `${agent.value?.name || agentId.value} - OpenClaw`)
 })
 
-// Set agent name in route meta for breadcrumb
-watch(() => agent.value, (newAgent) => {
-  if (newAgent?.name) {
-    route.meta.agentName = newAgent.name
-  }
-}, { immediate: true })
+// Set agent name in route meta for breadcrumb (only once, not reactive to avoid loops)
+if (agent.value?.name) {
+  route.meta.agentName = agent.value.name
+}
 
 const TEAM_GRADIENTS: Record<string, string> = {
   code: 'from-blue-600 via-indigo-600 to-violet-700',
