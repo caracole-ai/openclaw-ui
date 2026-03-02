@@ -363,7 +363,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed } from 'vue'
+import { ref, computed, nextTick } from 'vue'
 
 const route = useRoute()
 const agentId = computed(() => route.params.id as string)
@@ -451,13 +451,20 @@ async function handleDrop(event: DragEvent, targetZone: 'assigned' | 'available'
 }
 
 // Skills management
+async function refreshKeepScroll() {
+  const scrollY = window.scrollY
+  await refresh()
+  await nextTick()
+  window.scrollTo({ top: scrollY, behavior: 'instant' })
+}
+
 async function addSkill(skillId: string) {
   try {
     await $fetch(`/api/agents/${agentId.value}/skills`, {
       method: 'POST',
       body: { skillId }
     })
-    await refresh()
+    await refreshKeepScroll()
   } catch (err: any) {
     console.error('Failed to add skill:', err)
     alert(`Erreur: ${err.message || 'Impossible d\'ajouter le skill'}`)
@@ -470,7 +477,7 @@ async function removeSkill(skillId: string) {
       method: 'DELETE',
       body: { skillId }
     })
-    await refresh()
+    await refreshKeepScroll()
   } catch (err: any) {
     console.error('Failed to remove skill:', err)
     alert(`Erreur: ${err.message || 'Impossible de retirer le skill'}`)
