@@ -25,54 +25,80 @@
     <!-- Contenu -->
     <main v-else-if="agent" class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
       <!-- Header agent -->
-      <div class="bg-white rounded-lg shadow-sm border p-6 mb-6">
-        <div class="flex items-start justify-between">
-          <div class="flex items-center gap-4">
-            <div 
-              class="w-16 h-16 rounded-full flex items-center justify-center text-2xl font-bold"
-              :class="avatarClass"
+      <div class="relative overflow-hidden rounded-2xl shadow-lg border border-gray-200/60 mb-6">
+        <!-- Background gradient -->
+        <div class="absolute inset-0 bg-gradient-to-br" :class="headerGradient"></div>
+        <div class="absolute inset-0 bg-[radial-gradient(ellipse_at_top_right,rgba(255,255,255,0.3),transparent_70%)]"></div>
+        
+        <div class="relative p-6 sm:p-8">
+          <!-- Navigation flèches + status -->
+          <div class="flex items-center justify-between mb-6">
+            <NuxtLink
+              v-if="prevAgent"
+              :to="`/agent/${prevAgent.id}`"
+              class="flex items-center gap-2 px-3 py-2 rounded-lg bg-white/20 backdrop-blur-sm hover:bg-white/40 transition-all text-white/90 hover:text-white group"
             >
-              {{ agent.name.charAt(0).toUpperCase() }}
+              <span class="text-lg group-hover:-translate-x-0.5 transition-transform">←</span>
+              <span class="text-sm font-medium hidden sm:inline">{{ prevAgent.name }}</span>
+            </NuxtLink>
+            <div v-else class="w-24"></div>
+
+            <AgentStatusBadge :status="agent.status" />
+
+            <NuxtLink
+              v-if="nextAgent"
+              :to="`/agent/${nextAgent.id}`"
+              class="flex items-center gap-2 px-3 py-2 rounded-lg bg-white/20 backdrop-blur-sm hover:bg-white/40 transition-all text-white/90 hover:text-white group"
+            >
+              <span class="text-sm font-medium hidden sm:inline">{{ nextAgent.name }}</span>
+              <span class="text-lg group-hover:translate-x-0.5 transition-transform">→</span>
+            </NuxtLink>
+            <div v-else class="w-24"></div>
+          </div>
+
+          <!-- Agent identity -->
+          <div class="flex items-center gap-5">
+            <div 
+              class="w-20 h-20 rounded-2xl flex items-center justify-center text-4xl font-bold shadow-lg ring-4 ring-white/30"
+              :class="avatarClassHeader"
+            >
+              {{ agent.emoji || agent.name.charAt(0).toUpperCase() }}
             </div>
-            <div>
-              <div class="flex items-center gap-3">
-                <h1 class="text-2xl font-bold text-gray-900">{{ agent.name }}</h1>
-                <!-- Badge équipe -->
+            <div class="flex-1 min-w-0">
+              <div class="flex items-center gap-3 flex-wrap">
+                <h1 class="text-3xl font-extrabold text-white tracking-tight">{{ agent.name }}</h1>
                 <span 
-                  class="px-2 py-0.5 text-xs font-medium rounded-full"
-                  :class="agentTeam.color"
+                  class="px-2.5 py-1 text-xs font-semibold rounded-full bg-white/20 text-white backdrop-blur-sm"
                 >
                   {{ agentTeam.icon }} {{ agentTeam.label }}
                 </span>
-                <span v-if="agent.role" class="px-2 py-0.5 text-xs font-medium rounded-full bg-gray-100 text-gray-600">
+                <span v-if="agent.role" class="px-2.5 py-1 text-xs font-medium rounded-full bg-white/10 text-white/80">
                   {{ agent.role }}
                 </span>
               </div>
-              <p class="text-gray-500 font-mono text-sm">{{ agent.id }}</p>
-              <!-- Dernière activité -->
-              <p v-if="lastActivityText" class="text-xs text-gray-400 mt-1">{{ lastActivityText }}</p>
+              <p class="text-white/60 font-mono text-sm mt-1">{{ agent.id }}</p>
+              <p v-if="lastActivityText" class="text-white/50 text-xs mt-0.5">{{ lastActivityText }}</p>
             </div>
           </div>
-          <AgentStatusBadge :status="agent.status" />
-        </div>
 
-        <!-- Stats rapides -->
-        <div class="grid grid-cols-4 gap-4 mt-6">
-          <div class="bg-gray-50 rounded-lg p-4">
-            <div class="text-sm text-gray-500">Sessions actives</div>
-            <div class="text-2xl font-bold">{{ liveStats.activeSessions }}</div>
-          </div>
-          <div class="bg-gray-50 rounded-lg p-4">
-            <div class="text-sm text-gray-500">Tokens utilisés</div>
-            <div class="text-2xl font-bold">{{ formatTokens(liveStats.totalTokens) }}</div>
-          </div>
-          <div class="bg-gray-50 rounded-lg p-4">
-            <div class="text-sm text-gray-500">Contexte utilisé</div>
-            <div class="text-2xl font-bold" :class="percentClass">{{ liveStats.maxPercentUsed }}%</div>
-          </div>
-          <div class="bg-gray-50 rounded-lg p-4">
-            <div class="text-sm text-gray-500">Modèle</div>
-            <div class="text-2xl font-bold">{{ formatModel(agent.model) }}</div>
+          <!-- Stats rapides -->
+          <div class="grid grid-cols-2 sm:grid-cols-4 gap-3 mt-6">
+            <div class="bg-white/10 backdrop-blur-sm rounded-xl p-4 border border-white/10">
+              <div class="text-xs text-white/60 font-medium uppercase tracking-wider">Sessions</div>
+              <div class="text-2xl font-bold text-white mt-1">{{ liveStats.activeSessions }}</div>
+            </div>
+            <div class="bg-white/10 backdrop-blur-sm rounded-xl p-4 border border-white/10">
+              <div class="text-xs text-white/60 font-medium uppercase tracking-wider">Tokens</div>
+              <div class="text-2xl font-bold text-white mt-1">{{ formatTokens(liveStats.totalTokens) }}</div>
+            </div>
+            <div class="bg-white/10 backdrop-blur-sm rounded-xl p-4 border border-white/10">
+              <div class="text-xs text-white/60 font-medium uppercase tracking-wider">Contexte</div>
+              <div class="text-2xl font-bold mt-1" :class="percentClassHeader">{{ liveStats.maxPercentUsed }}%</div>
+            </div>
+            <div class="bg-white/10 backdrop-blur-sm rounded-xl p-4 border border-white/10">
+              <div class="text-xs text-white/60 font-medium uppercase tracking-wider">Modèle</div>
+              <div class="text-2xl font-bold text-white mt-1">{{ formatModel(agent.model) }}</div>
+            </div>
           </div>
         </div>
       </div>
@@ -377,6 +403,13 @@ const tabs = [
   { id: 'channels', label: 'Channels' },
 ]
 
+// Fetch all agents for prev/next navigation
+const { data: agentsData } = await useFetch('/api/agents')
+const agentsList = computed(() => (agentsData.value as any)?.agents || [])
+const currentIndex = computed(() => agentsList.value.findIndex((a: any) => a.id === agentId.value))
+const prevAgent = computed(() => currentIndex.value > 0 ? agentsList.value[currentIndex.value - 1] : null)
+const nextAgent = computed(() => currentIndex.value >= 0 && currentIndex.value < agentsList.value.length - 1 ? agentsList.value[currentIndex.value + 1] : null)
+
 // Fetch agent details (includes live session data)
 const { data: agent, pending, error, refresh } = await useFetch(`/api/agents/${agentId.value}`)
 
@@ -506,6 +539,20 @@ watch(() => agent.value, (newAgent) => {
   }
 }, { immediate: true })
 
+const TEAM_GRADIENTS: Record<string, string> = {
+  code: 'from-blue-600 via-indigo-600 to-violet-700',
+  writing: 'from-purple-600 via-fuchsia-600 to-pink-600',
+  system: 'from-orange-500 via-amber-600 to-yellow-600',
+  free: 'from-emerald-500 via-teal-600 to-cyan-600',
+}
+
+const headerGradient = computed(() => {
+  const team = agent.value?.team || 'unknown'
+  return TEAM_GRADIENTS[team] || 'from-gray-600 via-slate-700 to-gray-800'
+})
+
+const avatarClassHeader = computed(() => 'bg-white/20 text-white backdrop-blur-sm')
+
 const avatarClass = computed(() => {
   switch (agent.value?.status) {
     case 'online': return 'bg-green-100 text-green-700'
@@ -520,6 +567,13 @@ const percentClass = computed(() => {
   if (p >= 80) return 'text-red-600'
   if (p >= 60) return 'text-yellow-600'
   return 'text-gray-900'
+})
+
+const percentClassHeader = computed(() => {
+  const p = liveStats.value?.maxPercentUsed ?? 0
+  if (p >= 80) return 'text-red-300'
+  if (p >= 60) return 'text-yellow-300'
+  return 'text-white'
 })
 
 // formatTokens, formatModel, formatAge, formatSessionKey are auto-imported from utils/format.ts
