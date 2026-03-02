@@ -135,7 +135,6 @@
     <ProjectsKanban
       v-else
       :projects="filteredProjects"
-      @state-change="handleStateChange"
     />
   </section>
 </template>
@@ -208,11 +207,4 @@ const projectGroups = computed(() => {
     projects: filteredProjects.value.filter(p => p.state === config.state)
   })).filter(group => group.projects.length > 0)
 })
-
-function handleStateChange(projectId: string, newState: ProjectState) {
-  const project = projects.value.find(p => p.id === projectId)
-  if (project) {
-    project.state = newState
-  }
-}
 </script>

@@ -86,15 +86,15 @@
 <script setup lang="ts">
 import { ref } from 'vue'
 import type { Project, ProjectState } from '~/types/project'
-import { KANBAN_COLUMNS } from '~/composables/useProjects'
+import { KANBAN_COLUMNS, useProjects } from '~/composables/useProjects'
+import { useToast } from '~/composables/useToast'
 
 const props = defineProps<{
   projects: Project[]
 }>()
 
-const emit = defineEmits<{
-  (e: 'stateChange', projectId: string, newState: ProjectState): void
-}>()
+const { fetchProjects } = useProjects()
+const { success, error } = useToast()
 
 // Drag state
 const draggingId = ref<string | null>(null)
@@ -168,25 +168,30 @@ async function handleDrop(event: DragEvent, newState: ProjectState) {
       // Validate transition
       const validTargets = VALID_TRANSITIONS[project.state] || []
       if (!validTargets.includes(newState)) {
+        error(`Transition invalide: ${project.state} → ${newState}`)
         draggingId.value = null
         dragOverColumn.value = null
         return
       }
 
       try {
-        const response = await fetch(`/api/projects/${projectId}`, {
+        await $fetch(`/api/projects/${projectId}`, {
           method: 'PATCH',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
+          body: {
             state: newState,
-            message: `State changé: ${project.state} → ${newState} (drag & drop)`
-          })
+            message: `État changé: ${project.state} → ${newState} (drag & drop)`
+          }
         })
-        if (response.ok) {
-          emit('stateChange', projectId, newState)
-        }
-      } catch (error) {
-        console.error('Failed to update project state:', error)
+        
+        // Refresh projects to get updated data from DB
+        await fetchProjects()
+        
+        // Success toast
+        const stateLabel = KANBAN_COLUMNS.find(c => c.state === newState)?.label || newState
+        success(`${project.name} → ${stateLabel}`)
+      } catch (err: any) {
+        console.error('Failed to update project state:', err)
+        error(`Erreur lors de la mise à jour: ${err.message || 'Erreur inconnue'}`)
       }
     }
   }
