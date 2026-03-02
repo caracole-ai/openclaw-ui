@@ -109,6 +109,43 @@ Lire un fichier workspace.
 
 ---
 
+### POST `/api/agents/:id/skills`
+Assigner un skill à un agent.
+
+**Body :**
+```typescript
+{
+  skillId: string
+}
+```
+
+**Actions :**
+1. Vérifie que l'agent existe
+2. Vérifie que le skill existe
+3. INSERT OR IGNORE dans `agent_skills`
+
+**Réponse :** `{ success: true, agentId, skillId }`
+
+---
+
+### DELETE `/api/agents/:id/skills`
+Retirer un skill d'un agent.
+
+**Body :**
+```typescript
+{
+  skillId: string
+}
+```
+
+**Actions :**
+1. Vérifie que l'agent existe
+2. DELETE FROM `agent_skills`
+
+**Réponse :** `{ success: true, agentId, skillId }`
+
+---
+
 ## Projets
 
 ### GET `/api/projects`
@@ -234,6 +271,21 @@ Relancer agents sur un projet.
 
 ---
 
+### DELETE `/api/projects/:id`
+Supprimer un projet et toutes ses données.
+
+**Actions (transaction SQLite) :**
+1. Supprime projet de `projects`
+2. Supprime relations `project_agents`, `project_phases`, `project_updates`
+3. Supprime dossier `~/.openclaw/projects/{id}/`
+4. Enregistre event `project:deleted` dans `events`
+
+**Réponse :** `{ success: true, deleted: id }`
+
+**UI :** Modale de confirmation avec liste des données supprimées
+
+---
+
 ## Skills
 
 ### GET `/api/skills`
@@ -243,10 +295,16 @@ Liste skills installés + assignments.
 
 **Réponse :**
 ```typescript
-Skill[] // Avec agents assignés : agentIds[]
+{
+  installed: Skill[],
+  assignments: Record<string, string[]>, // agentId => skillIds[]
+  timestamp: string
+}
 ```
 
 **Composable :** `useSkills`
+
+**Utilisé par :** Page agent (éditeur drag & drop skills)
 
 ---
 

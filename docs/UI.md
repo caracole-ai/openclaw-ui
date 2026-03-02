@@ -1,6 +1,6 @@
 # 🎨 UI — Pages, Composables, Types
 
-**Date :** 2026-03-02  
+**Date :** 2026-03-02 (mis à jour 11:37)  
 **Stack :** Vue 3 + Nuxt 3 + TypeScript + Tailwind CSS
 
 ---
@@ -51,23 +51,41 @@ Workspace + Bot MM + DB + Config Gateway
 **Sections :**
 - **Header :** nom, emoji, team badge, role badge, status
 - **Stats live :** sessions actives, tokens utilisés, contexte % (polling 10s)
-- **Tabs :**
-  - Projets assignés
-  - Fichiers workspace (SOUL.md, IDENTITY.md, etc.)
-  - Sessions live
-  - Channels Mattermost
+- **Tabs :** (par défaut : Skills)
+  - **Skills** — Éditeur drag & drop deux colonnes
+    - Colonne gauche (bleue) : Skills assignés
+    - Colonne droite (grise) : Skills disponibles
+    - Glisser-déposer entre colonnes
+    - Boutons +/✕ en fallback
+    - Scroll position préservée après actions
+  - **Projets** — Projets assignés avec état et progress bar
+  - **Fichiers** — Workspace files (SOUL.md, IDENTITY.md, etc.)
+  - **Sessions** — Sessions live
+  - **Channels** — Channels Mattermost
 
 **Composable :** `useAgents` (détail)
+
+**Endpoints utilisés :**
+- `GET /api/agents/:id` — Détail agent + skills + projets
+- `POST /api/agents/:id/skills` — Ajouter skill
+- `DELETE /api/agents/:id/skills` — Retirer skill
+- `GET /api/skills` — Liste tous les skills
 
 ---
 
 ### `/projets` — Liste Projets
-**Vue :** Kanban par état (`backlog` → `planning` → `development` → `review` → `done`)
+**Vue :** Kanban par état (`backlog` → `planning` → `build` → `review` → `delivery` → `rex` → `done`)
 
 **Cards :**
 - Nom, description
-- Progress bar
+- Progress bar (0% backlog → 100% done, basé sur state index)
 - Team badges (agents assignés)
+
+**Drag & Drop :** ✅
+- Glisser-déposer entre colonnes (toutes transitions autorisées)
+- PATCH `/api/projects/:id` avec nouveau state
+- Refresh automatique depuis DB
+- Toasts de succès/erreur
 
 **Composable :** `useProjects`
 
@@ -75,11 +93,16 @@ Workspace + Bot MM + DB + Config Gateway
 
 ### `/project/:id` — Détail Projet
 **Sections :**
-- **Header :** nom, état, progress bar, GitHub link
+- **Header :** nom, état, progress bar, GitHub link, bouton suppression 🗑️
 - **Équipe :** agents assignés avec rôles
 - **Phases :** timeline ordonnée
 - **Docs :** fichiers du projet (`projects/{id}/`)
 - **Activité :** historique updates + tokens utilisés
+
+**Actions :**
+- **Suppression :** Modale de confirmation → DELETE → Redirection `/projets`
+- **État :** Dropdown pour changer l'état
+- **Progress :** Slider éditable
 
 **Composables :** `useProjects` (détail), `/api/projects/:id/activity`
 
