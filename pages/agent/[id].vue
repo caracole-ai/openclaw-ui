@@ -392,7 +392,7 @@ const agentProjects = computed(() => agent.value?.projects || [])
 
 // Fetch all skills
 const { data: allSkillsData } = await useFetch('/api/skills')
-const allSkills = computed(() => allSkillsData.value?.skills || [])
+const allSkills = computed(() => allSkillsData.value?.installed || [])
 
 // Available skills (not yet assigned to this agent)
 const availableSkills = computed(() => {
