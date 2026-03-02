@@ -58,8 +58,8 @@
             <!-- Progress -->
             <div class="h-1.5 bg-gray-200 rounded-full overflow-hidden">
               <div
-                class="h-full rounded-full"
-                :style="{ width: `${getProgressPercent(column.state)}%`, backgroundColor: column.color }"
+                class="h-full rounded-full transition-all duration-300"
+                :style="{ width: `${getProgressPercent(project)}%`, backgroundColor: column.color }"
               ></div>
             </div>
 
@@ -100,16 +100,7 @@ const { success, error } = useToast()
 const draggingId = ref<string | null>(null)
 const dragOverColumn = ref<string | null>(null)
 
-// Valid transitions (state machine)
-const VALID_TRANSITIONS: Record<ProjectState, ProjectState[]> = {
-  backlog:  ['planning'],
-  planning: ['backlog', 'build'],
-  build:    ['planning', 'review'],
-  review:   ['build', 'delivery'],
-  delivery: ['review', 'rex'],
-  rex:      ['delivery', 'done'],
-  done:     [],
-}
+// No transition validation - user can move projects freely between any columns
 
 const AGENT_EMOJIS: Record<string, string> = {
   main: '🔧', winston: '🏗️', amelia: '💻', claudio: '⚙️'
@@ -141,8 +132,21 @@ function getIcon(state: ProjectState): string {
   return STATE_ICONS[state] || '📁'
 }
 
-function getProgressPercent(state: ProjectState): number {
-  return Math.round((STATE_INDEX[state] / 6) * 100)
+function getProgressPercent(project: Project): number {
+  // Priority 1: Use explicit progress field from DB if set
+  if (project.progress != null && project.progress >= 0 && project.progress <= 100) {
+    return project.progress
+  }
+  
+  // Priority 2: Calculate from phases completion
+  const phases = project.phases
+  if (phases && phases.length > 0) {
+    const completed = phases.filter((p: any) => p.status === 'completed').length
+    return Math.round((completed / phases.length) * 100)
+  }
+  
+  // Priority 3: Fallback to state index (0% backlog → 100% done)
+  return Math.round((STATE_INDEX[project.state] / 6) * 100)
 }
 
 function handleDragStart(event: DragEvent, project: Project) {
@@ -165,15 +169,7 @@ async function handleDrop(event: DragEvent, newState: ProjectState) {
   if (projectId) {
     const project = props.projects.find(p => p.id === projectId)
     if (project && project.state !== newState) {
-      // Validate transition
-      const validTargets = VALID_TRANSITIONS[project.state] || []
-      if (!validTargets.includes(newState)) {
-        error(`Transition invalide: ${project.state} → ${newState}`)
-        draggingId.value = null
-        dragOverColumn.value = null
-        return
-      }
-
+      // No validation - allow any transition
       try {
         await $fetch(`/api/projects/${projectId}`, {
           method: 'PATCH',
