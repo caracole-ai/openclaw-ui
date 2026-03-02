@@ -368,10 +368,10 @@ import { ref, computed } from 'vue'
 const route = useRoute()
 const agentId = computed(() => route.params.id as string)
 
-const activeTab = ref('projects')
+const activeTab = ref('skills')
 const tabs = [
-  { id: 'projects', label: 'Projets' },
   { id: 'skills', label: 'Skills' },
+  { id: 'projects', label: 'Projets' },
   { id: 'files', label: 'Fichiers' },
   { id: 'sessions', label: 'Sessions' },
   { id: 'channels', label: 'Channels' },
