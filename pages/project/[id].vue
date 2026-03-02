@@ -473,6 +473,94 @@
         </div>
       </Transition>
     </Teleport>
+
+    <!-- ═══════════════════════════════════════════════════════════════ -->
+    <!-- DELETE CONFIRMATION MODAL -->
+    <!-- ═══════════════════════════════════════════════════════════════ -->
+    <Teleport to="body">
+      <Transition
+        enter-active-class="transition-all duration-200"
+        enter-from-class="opacity-0"
+        enter-to-class="opacity-100"
+        leave-active-class="transition-all duration-200"
+        leave-from-class="opacity-100"
+        leave-to-class="opacity-0"
+      >
+        <div 
+          v-if="showDeleteConfirm"
+          class="fixed inset-0 z-50 flex items-center justify-center p-4"
+          @click.self="cancelDelete"
+        >
+          <!-- Backdrop -->
+          <div 
+            class="absolute inset-0 bg-black/60 backdrop-blur-sm"
+            @click="cancelDelete"
+          ></div>
+          
+          <!-- Modal -->
+          <Transition
+            enter-active-class="transition-all duration-200 delay-75"
+            enter-from-class="opacity-0 scale-95"
+            enter-to-class="opacity-100 scale-100"
+            leave-active-class="transition-all duration-150"
+            leave-from-class="opacity-100 scale-100"
+            leave-to-class="opacity-0 scale-95"
+          >
+            <div 
+              v-if="showDeleteConfirm"
+              class="relative bg-white rounded-2xl shadow-2xl w-full max-w-md overflow-hidden"
+            >
+              <!-- Header -->
+              <div class="p-6 bg-gradient-to-r from-red-50 to-orange-50 border-b border-red-100">
+                <div class="flex items-center gap-3">
+                  <span class="text-4xl">⚠️</span>
+                  <div>
+                    <h3 class="font-bold text-xl text-red-900">Supprimer le projet ?</h3>
+                    <p class="text-sm text-red-700 mt-1">Cette action est irréversible</p>
+                  </div>
+                </div>
+              </div>
+              
+              <!-- Content -->
+              <div class="p-6">
+                <p class="text-gray-700 mb-4">
+                  Vous êtes sur le point de supprimer le projet 
+                  <strong class="text-gray-900">{{ project?.name }}</strong>.
+                </p>
+                <div class="bg-red-50 border border-red-200 rounded-lg p-4 text-sm text-red-800">
+                  <strong class="block mb-1">📋 Données qui seront supprimées :</strong>
+                  <ul class="list-disc list-inside space-y-1 text-xs">
+                    <li>Toutes les informations du projet</li>
+                    <li>Historique des modifications</li>
+                    <li>Phases et assignations</li>
+                    <li>Dossier du projet sur le disque</li>
+                  </ul>
+                </div>
+              </div>
+
+              <!-- Actions -->
+              <div class="flex gap-3 p-6 bg-gray-50 border-t">
+                <button
+                  @click="cancelDelete"
+                  :disabled="isDeleting"
+                  class="flex-1 px-4 py-3 border-2 border-gray-300 rounded-xl font-medium text-gray-700 hover:bg-gray-100 transition-colors disabled:opacity-50"
+                >
+                  Annuler
+                </button>
+                <button
+                  @click="deleteProject"
+                  :disabled="isDeleting"
+                  class="flex-1 px-4 py-3 bg-red-600 hover:bg-red-700 border-2 border-red-600 rounded-xl font-medium text-white transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  <span v-if="!isDeleting">🗑️ Supprimer</span>
+                  <span v-else>⏳ Suppression...</span>
+                </button>
+              </div>
+            </div>
+          </Transition>
+        </div>
+      </Transition>
+    </Teleport>
     </main>
   </div>
 </template>
@@ -502,6 +590,7 @@ const error = ref('')
 const showAddUpdate = ref(false)
 const newUpdate = ref('')
 const showDeleteConfirm = ref(false)
+const isDeleting = ref(false)
 
 // Documentation state
 const docs = ref<DocFile[]>([])
@@ -778,14 +867,13 @@ function addUpdate() {
 
 function confirmDelete() {
   if (!project.value) return
-  const confirmed = confirm(`⚠️ Supprimer le projet "${project.value.name}" ?\n\nCette action est irréversible. Toutes les données du projet seront supprimées.`)
-  if (confirmed) {
-    deleteProject()
-  }
+  showDeleteConfirm.value = true
 }
 
 async function deleteProject() {
-  if (!project.value) return
+  if (!project.value || isDeleting.value) return
+  isDeleting.value = true
+  
   try {
     const response = await $fetch(`/api/projects/${project.value.id}`, {
       method: 'DELETE'
@@ -797,7 +885,14 @@ async function deleteProject() {
   } catch (err: any) {
     console.error('Failed to delete project:', err)
     alert(`Erreur lors de la suppression: ${err.message || 'Erreur inconnue'}`)
+  } finally {
+    isDeleting.value = false
+    showDeleteConfirm.value = false
   }
+}
+
+function cancelDelete() {
+  showDeleteConfirm.value = false
 }
 
 // formatDateShort, formatFileSize are auto-imported from utils/format.ts
