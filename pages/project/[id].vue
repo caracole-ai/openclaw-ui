@@ -86,14 +86,14 @@
       </div>
 
       <!-- ═══════════════════════════════════════════════════════════════ -->
-      <!-- MAIN LAYOUT: Documents + Sidebar -->
+      <!-- BENTO GRID LAYOUT -->
       <!-- ═══════════════════════════════════════════════════════════════ -->
-      <div class="flex flex-col lg:flex-row gap-6">
+      <div class="grid grid-cols-1 lg:grid-cols-12 gap-6">
         
         <!-- ─────────────────────────────────────────────────────────────── -->
-        <!-- MAIN: RETEX + DOCUMENTS -->
+        <!-- MAIN: RETEX + DOCUMENTS (8 cols) -->
         <!-- ─────────────────────────────────────────────────────────────── -->
-        <div class="flex-1 min-w-0 space-y-6">
+        <div class="lg:col-span-8 space-y-6">
           
           <!-- ─────────────────────────────────────────────────────────────── -->
           <!-- RETOUR D'EXPÉRIENCE (RETEX) - En haut -->
@@ -201,9 +201,9 @@
         </div>
 
         <!-- ─────────────────────────────────────────────────────────────── -->
-        <!-- SIDEBAR -->
+        <!-- SIDEBAR (4 cols - plus d'espace pour historique) -->
         <!-- ─────────────────────────────────────────────────────────────── -->
-        <div class="w-full lg:w-80 flex-shrink-0 space-y-4">
+        <div class="lg:col-span-4 space-y-4">
 
           <!-- Team card -->
           <div v-if="project.team?.length || project.assignees?.length" class="bg-white rounded-2xl shadow-sm border p-5">
@@ -369,9 +369,9 @@
             </div>
 
             <!-- Updates list -->
-            <div class="space-y-2 max-h-64 overflow-y-auto pr-1">
+            <div class="space-y-2 max-h-96 overflow-y-auto pr-1">
               <div 
-                v-for="(update, index) in (project.updates ?? []).slice().reverse().slice(0, 10)" 
+                v-for="(update, index) in sortedUpdates" 
                 :key="index"
                 class="p-2 rounded-lg bg-gray-50 text-sm"
               >
@@ -588,6 +588,18 @@ const groupedDocs = computed<GroupedDocs[]>(() => {
 // Count non-retex docs
 const regularDocsCount = computed(() => {
   return docs.value.filter(doc => doc.folder !== 'retex').length
+})
+
+// Sort updates by timestamp (most recent first)
+const sortedUpdates = computed(() => {
+  if (!project.value?.updates?.length) return []
+  return [...project.value.updates]
+    .sort((a, b) => {
+      const dateA = new Date(a.timestamp || 0).getTime()
+      const dateB = new Date(b.timestamp || 0).getTime()
+      return dateB - dateA // Most recent first
+    })
+    .slice(0, 20) // Show more updates (20 instead of 10)
 })
 
 // Get icon for update type

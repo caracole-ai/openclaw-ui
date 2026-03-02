@@ -1,7 +1,8 @@
 <template>
   <div
-    class="bg-white rounded-xl shadow-sm border hover:shadow-md transition-shadow border-l-4"
+    class="bg-white rounded-xl shadow-sm border hover:shadow-md transition-shadow border-l-4 cursor-pointer"
     :class="borderClass"
+    @click="emit('click', skill)"
   >
     <div class="p-4">
       <!-- Header: name + version + status badge -->
@@ -83,6 +84,7 @@ const props = defineProps<{
 
 const emit = defineEmits<{
   (e: 'verified', result: SkillVerification): void
+  (e: 'click', skill: Skill): void
 }>()
 
 // --- Agents assigned to this skill ---

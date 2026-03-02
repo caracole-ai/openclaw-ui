@@ -150,6 +150,7 @@
               :key="skill.id"
               :skill="skill"
               :assignments="assignments"
+              @click="openSkillViewer"
             />
           </TransitionGroup>
         </div>
@@ -174,6 +175,13 @@
       </div>
 
     </main>
+
+    <!-- Skill Viewer Modal -->
+    <SkillViewer
+      :skill-id="selectedSkillId"
+      :is-open="isViewerOpen"
+      @close="closeSkillViewer"
+    />
   </div>
 </template>
 
@@ -192,6 +200,10 @@ const { installed, pending, assignments, loading, error } = useSkills()
 const searchQuery = ref('')
 const selectedAgent = ref('')
 const selectedStatus = ref('')
+
+// Skill viewer state
+const selectedSkillId = ref<string | null>(null)
+const isViewerOpen = ref(false)
 
 // Combine installed + pending into a single list
 const allSkills = computed<Skill[]>(() => {
@@ -234,6 +246,20 @@ const filteredSkills = computed(() => {
 
   return result
 })
+
+// Skill viewer functions
+function openSkillViewer(skill: Skill) {
+  selectedSkillId.value = skill.id
+  isViewerOpen.value = true
+}
+
+function closeSkillViewer() {
+  isViewerOpen.value = false
+  // Delay clearing selectedSkillId to allow close animation to complete
+  setTimeout(() => {
+    selectedSkillId.value = null
+  }, 300)
+}
 </script>
 
 <style scoped>
