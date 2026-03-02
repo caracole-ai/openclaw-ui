@@ -56,48 +56,49 @@
             <div v-else class="w-24"></div>
           </div>
 
-          <!-- Agent identity -->
-          <div class="flex items-center gap-5">
-            <div 
-              class="w-20 h-20 rounded-2xl flex items-center justify-center text-4xl font-bold shadow-lg ring-4 ring-white/30"
-              :class="avatarClassHeader"
-            >
-              {{ agent.emoji || agent.name.charAt(0).toUpperCase() }}
-            </div>
-            <div class="flex-1 min-w-0">
-              <div class="flex items-center gap-3 flex-wrap">
-                <h1 class="text-3xl font-extrabold text-white tracking-tight">{{ agent.name }}</h1>
-                <span 
-                  class="px-2.5 py-1 text-xs font-semibold rounded-full bg-white/20 text-white backdrop-blur-sm"
-                >
-                  {{ agentTeam.icon }} {{ agentTeam.label }}
-                </span>
-                <span v-if="agent.role" class="px-2.5 py-1 text-xs font-medium rounded-full bg-white/10 text-white/80">
-                  {{ agent.role }}
-                </span>
+          <!-- Bento: identity + stats -->
+          <div class="flex flex-col sm:flex-row gap-4 items-start">
+            <!-- Identity -->
+            <div class="flex items-center gap-4 flex-1 min-w-0">
+              <div 
+                class="w-16 h-16 rounded-2xl flex items-center justify-center text-3xl font-bold shadow-lg ring-3 ring-white/30 shrink-0"
+                :class="avatarClassHeader"
+              >
+                {{ agent.emoji || agent.name.charAt(0).toUpperCase() }}
               </div>
-              <p class="text-white/60 font-mono text-sm mt-1">{{ agent.id }}</p>
-              <p v-if="lastActivityText" class="text-white/50 text-xs mt-0.5">{{ lastActivityText }}</p>
+              <div class="min-w-0">
+                <div class="flex items-center gap-2 flex-wrap">
+                  <h1 class="text-2xl font-extrabold text-white tracking-tight">{{ agent.name }}</h1>
+                  <span class="px-2 py-0.5 text-[10px] font-semibold rounded-full bg-white/20 text-white backdrop-blur-sm">
+                    {{ agentTeam.icon }} {{ agentTeam.label }}
+                  </span>
+                  <span v-if="agent.role" class="px-2 py-0.5 text-[10px] font-medium rounded-full bg-white/10 text-white/70">
+                    {{ agent.role }}
+                  </span>
+                </div>
+                <p class="text-white/50 font-mono text-xs mt-0.5">{{ agent.id }}</p>
+                <p v-if="lastActivityText" class="text-white/40 text-[11px]">{{ lastActivityText }}</p>
+              </div>
             </div>
-          </div>
 
-          <!-- Stats rapides -->
-          <div class="grid grid-cols-2 sm:grid-cols-4 gap-3 mt-6">
-            <div class="bg-white/10 backdrop-blur-sm rounded-xl p-4 border border-white/10">
-              <div class="text-xs text-white/60 font-medium uppercase tracking-wider">Sessions</div>
-              <div class="text-2xl font-bold text-white mt-1">{{ liveStats.activeSessions }}</div>
-            </div>
-            <div class="bg-white/10 backdrop-blur-sm rounded-xl p-4 border border-white/10">
-              <div class="text-xs text-white/60 font-medium uppercase tracking-wider">Tokens</div>
-              <div class="text-2xl font-bold text-white mt-1">{{ formatTokens(liveStats.totalTokens) }}</div>
-            </div>
-            <div class="bg-white/10 backdrop-blur-sm rounded-xl p-4 border border-white/10">
-              <div class="text-xs text-white/60 font-medium uppercase tracking-wider">Contexte</div>
-              <div class="text-2xl font-bold mt-1" :class="percentClassHeader">{{ liveStats.maxPercentUsed }}%</div>
-            </div>
-            <div class="bg-white/10 backdrop-blur-sm rounded-xl p-4 border border-white/10">
-              <div class="text-xs text-white/60 font-medium uppercase tracking-wider">Modèle</div>
-              <div class="text-2xl font-bold text-white mt-1">{{ formatModel(agent.model) }}</div>
+            <!-- Stats bento grid compact -->
+            <div class="grid grid-cols-4 sm:grid-cols-2 gap-2 shrink-0">
+              <div class="bg-white/10 backdrop-blur-sm rounded-lg px-3 py-2 border border-white/10 min-w-[80px]">
+                <div class="text-[10px] text-white/50 font-medium uppercase tracking-wider leading-none">Sessions</div>
+                <div class="text-lg font-bold text-white leading-tight mt-0.5">{{ liveStats.activeSessions }}</div>
+              </div>
+              <div class="bg-white/10 backdrop-blur-sm rounded-lg px-3 py-2 border border-white/10 min-w-[80px]">
+                <div class="text-[10px] text-white/50 font-medium uppercase tracking-wider leading-none">Tokens</div>
+                <div class="text-lg font-bold text-white leading-tight mt-0.5">{{ formatTokens(liveStats.totalTokens) }}</div>
+              </div>
+              <div class="bg-white/10 backdrop-blur-sm rounded-lg px-3 py-2 border border-white/10 min-w-[80px]">
+                <div class="text-[10px] text-white/50 font-medium uppercase tracking-wider leading-none">Contexte</div>
+                <div class="text-lg font-bold leading-tight mt-0.5" :class="percentClassHeader">{{ liveStats.maxPercentUsed }}%</div>
+              </div>
+              <div class="bg-white/10 backdrop-blur-sm rounded-lg px-3 py-2 border border-white/10 min-w-[80px]">
+                <div class="text-[10px] text-white/50 font-medium uppercase tracking-wider leading-none">Modèle</div>
+                <div class="text-lg font-bold text-white leading-tight mt-0.5">{{ formatModel(agent.model) }}</div>
+              </div>
             </div>
           </div>
         </div>
@@ -413,10 +414,20 @@ const nextAgent = computed(() => currentIndex.value >= 0 && currentIndex.value <
 // Fetch agent details (includes live session data)
 const { data: agent, pending, error, refresh } = await useFetch(`/api/agents/${agentId.value}`)
 
-// Auto-refresh every 10s (client only)
+// Soft-poll: only update live stats without re-rendering the full component
+const liveOverride = ref<{ totalTokens: number; activeSessions: number; maxPercentUsed: number } | null>(null)
 let pollTimer: ReturnType<typeof setInterval> | null = null
 if (!import.meta.server) {
-  pollTimer = setInterval(() => refresh(), 10_000)
+  pollTimer = setInterval(async () => {
+    try {
+      const fresh: any = await $fetch(`/api/agents/${agentId.value}`)
+      liveOverride.value = {
+        totalTokens: fresh.totalTokens || 0,
+        activeSessions: fresh.activeSessions || 0,
+        maxPercentUsed: fresh.maxPercentUsed || 0,
+      }
+    } catch {}
+  }, 30_000) // 30s instead of 10s, and soft update only
   onUnmounted(() => { if (pollTimer) clearInterval(pollTimer) })
 }
 
@@ -434,7 +445,7 @@ const availableSkills = computed(() => {
 })
 
 // Live data now included in agent response
-const liveStats = computed(() => ({
+const liveStats = computed(() => liveOverride.value || ({
   totalTokens: agent.value?.totalTokens || 0,
   activeSessions: agent.value?.activeSessions || 0,
   maxPercentUsed: agent.value?.maxPercentUsed || 0,
