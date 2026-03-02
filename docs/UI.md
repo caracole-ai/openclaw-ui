@@ -1,6 +1,6 @@
 # 🎨 UI — Pages, Composables, Types
 
-**Date :** 2026-03-02 (mis à jour 11:37)  
+**Date :** 2026-03-02 (mis à jour 12:08)  
 **Stack :** Vue 3 + Nuxt 3 + TypeScript + Tailwind CSS
 
 ---
@@ -48,16 +48,22 @@ Workspace + Bot MM + DB + Config Gateway
 ---
 
 ### `/agent/:id` — Détail Agent
-**Sections :**
-- **Header :** nom, emoji, team badge, role badge, status
-- **Stats live :** sessions actives, tokens utilisés, contexte % (polling 10s)
-- **Tabs :** (par défaut : Skills)
+**Header (gradient par team) :**
+- **Gradient coloré** : bleu/violet (code), violet/rose (writing), orange/amber (system), emerald/teal (free)
+- **Navigation ← / →** : flèches pour passer à l'agent précédent/suivant (fetch `/api/agents`)
+- **Avatar** : emoji de l'agent dans un carré arrondi glassmorphism
+- **Badges** : team + role intégrés au header
+- **Stats bento 2×2** : sessions, tokens, contexte %, modèle — compactes à droite de l'identité
+
+**Polling :** Soft-poll toutes les 30s (`$fetch` direct → `liveOverride` ref), pas de re-render DOM.
+
+**Tabs :** (par défaut : Skills)
   - **Skills** — Éditeur drag & drop deux colonnes
     - Colonne gauche (bleue) : Skills assignés
     - Colonne droite (grise) : Skills disponibles
-    - Glisser-déposer entre colonnes
+    - Glisser-déposer entre colonnes (HTML5 natif)
     - Boutons +/✕ en fallback
-    - Scroll position préservée après actions
+    - Scroll position préservée après actions (`refreshKeepScroll`)
   - **Projets** — Projets assignés avec état et progress bar
   - **Fichiers** — Workspace files (SOUL.md, IDENTITY.md, etc.)
   - **Sessions** — Sessions live
@@ -66,6 +72,7 @@ Workspace + Bot MM + DB + Config Gateway
 **Composable :** `useAgents` (détail)
 
 **Endpoints utilisés :**
+- `GET /api/agents` — Liste agents (pour navigation ← / →)
 - `GET /api/agents/:id` — Détail agent + skills + projets
 - `POST /api/agents/:id/skills` — Ajouter skill
 - `DELETE /api/agents/:id/skills` — Retirer skill

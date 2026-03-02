@@ -171,10 +171,14 @@ npm run test:unit
 ```
 
 **Suites :**
-- 12 suites passées
-- 117/147 tests passed
+- 15 suites passées (+ skills-management, skills-api)
+- 145/175 tests passed
 - 5 tests skipped (intentionnels)
 - 25 tests todo (fonctionnalités futures)
+
+**Nouveaux fichiers de tests (2026-03-02) :**
+- `tests/unit/skills-management.spec.ts` — Skills assignment, agent nav, progress bar, soft poll
+- `tests/integration/skills-api.spec.ts` — Skills CRUD SQLite, cascade delete, agent_skills
 
 **Résultat actuel :** ✅ Aucun test cassé
 
