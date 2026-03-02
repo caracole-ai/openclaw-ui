@@ -81,6 +81,13 @@
               <option value="rex">💡 REX</option>
               <option value="done">✅ Done</option>
             </select>
+            <button
+              @click="confirmDelete"
+              class="px-3 py-2 text-sm font-medium text-red-600 bg-red-50 hover:bg-red-100 border-2 border-red-200 hover:border-red-300 rounded-xl transition-colors"
+              title="Supprimer le projet"
+            >
+              🗑️
+            </button>
           </div>
         </div>
       </div>
@@ -487,11 +494,13 @@ interface GroupedDocs {
 }
 
 const route = useRoute()
+const router = useRouter()
 const project = ref<Project | null>(null)
 const loading = ref(true)
 const error = ref('')
 const showAddUpdate = ref(false)
 const newUpdate = ref('')
+const showDeleteConfirm = ref(false)
 
 // Documentation state
 const docs = ref<DocFile[]>([])
@@ -764,6 +773,30 @@ function addUpdate() {
   updateProject({ message: newUpdate.value })
   newUpdate.value = ''
   showAddUpdate.value = false
+}
+
+function confirmDelete() {
+  if (!project.value) return
+  const confirmed = confirm(`⚠️ Supprimer le projet "${project.value.name}" ?\n\nCette action est irréversible. Toutes les données du projet seront supprimées.`)
+  if (confirmed) {
+    deleteProject()
+  }
+}
+
+async function deleteProject() {
+  if (!project.value) return
+  try {
+    const response = await $fetch(`/api/projects/${project.value.id}`, {
+      method: 'DELETE'
+    })
+    if (response.success) {
+      // Redirect to projects list
+      await router.push('/projets')
+    }
+  } catch (err: any) {
+    console.error('Failed to delete project:', err)
+    alert(`Erreur lors de la suppression: ${err.message || 'Erreur inconnue'}`)
+  }
 }
 
 // formatDateShort, formatFileSize are auto-imported from utils/format.ts
