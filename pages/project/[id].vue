@@ -82,7 +82,8 @@
               <option value="done">✅ Done</option>
             </select>
             <button
-              @click="confirmDelete"
+              @click.stop.prevent="confirmDelete"
+              type="button"
               class="px-3 py-2 text-sm font-medium text-red-600 bg-red-50 hover:bg-red-100 border-2 border-red-200 hover:border-red-300 rounded-xl transition-colors"
               title="Supprimer le projet"
             >
