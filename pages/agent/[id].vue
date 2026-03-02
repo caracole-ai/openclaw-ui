@@ -123,14 +123,16 @@
                     <span 
                       class="px-2 py-1 text-xs font-medium rounded-full"
                       :class="{
-                        'bg-gray-100 text-gray-700': project.status === 'planning',
-                        'bg-blue-100 text-blue-700': project.status === 'in-progress',
-                        'bg-purple-100 text-purple-700': project.status === 'review',
-                        'bg-green-100 text-green-700': project.status === 'completed',
-                        'bg-yellow-100 text-yellow-700': project.status === 'paused'
+                        'bg-gray-100 text-gray-700': project.state === 'backlog',
+                        'bg-blue-100 text-blue-700': project.state === 'planning',
+                        'bg-amber-100 text-amber-700': project.state === 'build',
+                        'bg-purple-100 text-purple-700': project.state === 'review',
+                        'bg-emerald-100 text-emerald-700': project.state === 'delivery',
+                        'bg-pink-100 text-pink-700': project.state === 'rex',
+                        'bg-green-100 text-green-700': project.state === 'done'
                       }"
                     >
-                      {{ project.status }}
+                      {{ project.state || project.status }}
                     </span>
                     <span class="text-gray-300 group-hover:text-blue-500 group-hover:translate-x-1 transition-all">→</span>
                   </div>
@@ -147,6 +149,57 @@
             <div v-else class="text-center py-8 text-gray-500">
               <span class="text-4xl mb-2 block">📭</span>
               Aucun projet assigné à cet agent
+            </div>
+          </div>
+
+          <!-- Tab: Skills -->
+          <div v-if="activeTab === 'skills'">
+            <!-- Agent skills -->
+            <div v-if="agent.skills && agent.skills.length" class="mb-6">
+              <h3 class="text-sm font-medium text-gray-700 mb-3">Skills assignés ({{ agent.skills.length }})</h3>
+              <div class="grid grid-cols-1 md:grid-cols-2 gap-2">
+                <div
+                  v-for="skillId in agent.skills"
+                  :key="skillId"
+                  class="flex items-center justify-between p-3 bg-gray-50 rounded-lg border group hover:bg-red-50 hover:border-red-200 transition-colors"
+                >
+                  <div class="flex items-center gap-2">
+                    <span class="text-lg">📦</span>
+                    <span class="font-medium text-gray-900">{{ skillId }}</span>
+                  </div>
+                  <button
+                    @click="removeSkill(skillId)"
+                    class="text-red-500 hover:text-red-700 opacity-0 group-hover:opacity-100 transition-opacity text-sm"
+                  >
+                    ✕
+                  </button>
+                </div>
+              </div>
+            </div>
+            
+            <!-- Available skills to add -->
+            <div>
+              <h3 class="text-sm font-medium text-gray-700 mb-3">Skills disponibles</h3>
+              <div v-if="availableSkills.length" class="grid grid-cols-1 md:grid-cols-2 gap-2">
+                <button
+                  v-for="skill in availableSkills"
+                  :key="skill.id"
+                  @click="addSkill(skill.id)"
+                  class="flex items-center justify-between p-3 bg-white rounded-lg border hover:bg-blue-50 hover:border-blue-200 transition-colors text-left"
+                >
+                  <div class="flex items-center gap-2">
+                    <span class="text-lg">📦</span>
+                    <div>
+                      <div class="font-medium text-gray-900">{{ skill.name || skill.id }}</div>
+                      <div v-if="skill.description" class="text-xs text-gray-500 line-clamp-1">{{ skill.description }}</div>
+                    </div>
+                  </div>
+                  <span class="text-blue-500">+</span>
+                </button>
+              </div>
+              <div v-else class="text-center py-8 text-gray-500">
+                Tous les skills sont déjà assignés
+              </div>
             </div>
           </div>
 
@@ -234,6 +287,7 @@ const agentId = computed(() => route.params.id as string)
 const activeTab = ref('projects')
 const tabs = [
   { id: 'projects', label: 'Projets' },
+  { id: 'skills', label: 'Skills' },
   { id: 'files', label: 'Fichiers' },
   { id: 'sessions', label: 'Sessions' },
   { id: 'channels', label: 'Channels' },
@@ -249,8 +303,18 @@ if (!import.meta.server) {
   onUnmounted(() => { if (pollTimer) clearInterval(pollTimer) })
 }
 
-// Projects come from the agent API (source of truth: projects.json)
+// Projects come from the agent API (source of truth: SQLite)
 const agentProjects = computed(() => agent.value?.projects || [])
+
+// Fetch all skills
+const { data: allSkillsData } = await useFetch('/api/skills')
+const allSkills = computed(() => allSkillsData.value?.skills || [])
+
+// Available skills (not yet assigned to this agent)
+const availableSkills = computed(() => {
+  const agentSkillIds = agent.value?.skills || []
+  return allSkills.value.filter(skill => !agentSkillIds.includes(skill.id))
+})
 
 // Live data now included in agent response
 const liveStats = computed(() => ({
@@ -259,6 +323,33 @@ const liveStats = computed(() => ({
   maxPercentUsed: agent.value?.maxPercentUsed || 0,
 }))
 const liveSessions = computed(() => agent.value?.sessions || [])
+
+// Skills management
+async function addSkill(skillId: string) {
+  try {
+    await $fetch(`/api/agents/${agentId.value}/skills`, {
+      method: 'POST',
+      body: { skillId }
+    })
+    await refresh()
+  } catch (err: any) {
+    console.error('Failed to add skill:', err)
+    alert(`Erreur: ${err.message || 'Impossible d\'ajouter le skill'}`)
+  }
+}
+
+async function removeSkill(skillId: string) {
+  try {
+    await $fetch(`/api/agents/${agentId.value}/skills`, {
+      method: 'DELETE',
+      body: { skillId }
+    })
+    await refresh()
+  } catch (err: any) {
+    console.error('Failed to remove skill:', err)
+    alert(`Erreur: ${err.message || 'Impossible de retirer le skill'}`)
+  }
+}
 
 useHead({
   title: computed(() => `${agent.value?.name || agentId.value} - OpenClaw`)
