@@ -1,5 +1,6 @@
 export type ProjectState = 'backlog' | 'planning' | 'build' | 'review' | 'delivery' | 'rex' | 'done'
 export type ProjectType = 'code' | 'writing' | 'hybrid'
+export type DocumentStatus = 'pending' | 'in_progress' | 'completed'
 
 export interface ProjectPhase {
   name: string
@@ -41,4 +42,7 @@ export interface Project {
   assignees: string[]
   phases: ProjectPhase[]
   updates: ProjectUpdate[]
+  // IDEAS to DASHBOARD workflow
+  idea_channel_id?: string | null
+  document_status?: DocumentStatus
 }

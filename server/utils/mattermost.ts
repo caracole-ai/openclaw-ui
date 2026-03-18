@@ -1,27 +1,36 @@
 /**
  * Mattermost API utility for server-side operations
- * Used by project state transitions (review/rex ceremonies)
+ * Supports:
+ * - Project state transitions (review/rex ceremonies)
+ * - IDEAS to DASHBOARD automation (channel creation, agent matching)
  */
 import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
+import { getDb } from './db'
+import type { DbAgent } from '~/server/types/db'
 
 const MM_URL = process.env.MATTERMOST_URL || 'http://localhost:8065'
-const MM_TEAM_ID = process.env.MM_TEAM_ID || 'kwhwcabzet8rmpguc79ttxwrsy'
+const MM_TEAM_ID = process.env.MATTERMOST_TEAM_ID || process.env.MM_TEAM_ID || 'kwhwcabzet8rmpguc79ttxwrsy'
 
-// Admin credentials for channel management — MUST be set via env vars
+// Admin credentials for channel management
 const MM_ADMIN_USER = process.env.MM_ADMIN_USER
 const MM_ADMIN_PASS = process.env.MM_ADMIN_PASS
+const MM_ADMIN_TOKEN = process.env.MATTERMOST_TOKEN // Alternative: use token directly
 
-if (!MM_ADMIN_USER || !MM_ADMIN_PASS) {
-  console.warn('[mm] MM_ADMIN_USER and MM_ADMIN_PASS env vars are required for Mattermost integration')
+if (!MM_ADMIN_USER && !MM_ADMIN_PASS && !MM_ADMIN_TOKEN) {
+  console.warn('[mm] MM_ADMIN_USER+MM_ADMIN_PASS or MATTERMOST_TOKEN env vars are required for Mattermost integration')
 }
 
 let adminToken: string | null = null
 
 async function getAdminToken(): Promise<string> {
+  // If token provided directly, use it
+  if (MM_ADMIN_TOKEN) return MM_ADMIN_TOKEN
+
+  // Otherwise, login with user/pass
   if (adminToken) return adminToken
   if (!MM_ADMIN_USER || !MM_ADMIN_PASS) {
-    throw new Error('[mm] MM_ADMIN_USER and MM_ADMIN_PASS env vars must be set')
+    throw new Error('[mm] MM_ADMIN_USER and MM_ADMIN_PASS env vars must be set (or MATTERMOST_TOKEN)')
   }
   const res = await fetch(`${MM_URL}/api/v4/users/login`, {
     method: 'POST',
@@ -29,10 +38,8 @@ async function getAdminToken(): Promise<string> {
     body: JSON.stringify({ login_id: MM_ADMIN_USER, password: MM_ADMIN_PASS }),
   })
   if (!res.ok) throw new Error(`MM login failed: ${res.status}`)
-  // MM returns token in response header (lowercase)
   adminToken = res.headers.get('token') || res.headers.get('Token')
   if (!adminToken) {
-    // Fallback: try to extract from response body
     const body = await res.json().catch(() => null)
     console.error('[mm] Login response headers:', Object.fromEntries(res.headers.entries()))
     throw new Error('No token in MM login response')
@@ -57,6 +64,8 @@ async function mmApi(method: string, path: string, body?: any, botToken?: string
   return res.json()
 }
 
+// ─── Ceremony Functions (original) ───
+
 /**
  * Create or get existing channel
  */
@@ -78,7 +87,6 @@ export async function mmCreateChannel(name: string, displayName: string, purpose
         return { id: existing.id, name: existing.name, created: false }
       } catch {
         // Channel was deleted (soft delete) — try to restore it or use a unique name
-        // Search by name in deleted channels
         try {
           const deleted = await mmApi('GET', `/teams/${MM_TEAM_ID}/channels/deleted?page=0&per_page=100`)
           const match = deleted.find((ch: any) => ch.name === name)
@@ -110,7 +118,7 @@ export async function mmCreateChannel(name: string, displayName: string, purpose
 export async function mmAddToChannel(channelId: string, userId: string): Promise<void> {
   try {
     console.log(`[mm] Adding ${userId} to channel ${channelId}...`)
-    const result = await mmApi('POST', `/channels/${channelId}/members`, { user_id: userId })
+    await mmApi('POST', `/channels/${channelId}/members`, { user_id: userId })
     console.log(`[mm] Added ${userId} to channel ${channelId} OK`)
   } catch (e: any) {
     // Already a member — ignore
@@ -232,4 +240,85 @@ export async function setupCeremonyChannel(opts: {
 
   // Channel setup done — the coordination message is posted by ceremony.post.ts
   return { channelId: channel.id, channelName: channel.name }
+}
+
+// ─── IDEAS to DASHBOARD Functions (new) ───
+
+interface Agent {
+  id: string
+  name: string
+  role: string | null
+  mm_user_id: string | null
+}
+
+/**
+ * Match agents based on expertise keywords
+ */
+export async function matchAgents(description: string): Promise<Agent[]> {
+  const db = getDb()
+  const agents = db.prepare('SELECT id, name, role, mm_user_id FROM agents WHERE status = ?').all('active') as Agent[]
+
+  // Load expertise from sources/agents.json
+  const HOME = process.env.HOME || ''
+  const agentsJsonPath = `${HOME}/.openclaw/sources/agents.json`
+  
+  let expertise: Record<string, string[]> = {}
+  try {
+    const data = JSON.parse(readFileSync(agentsJsonPath, 'utf-8'))
+    if (data.agents) {
+      expertise = data.agents.reduce((acc: any, a: any) => {
+        if (a.id && a.expertise) acc[a.id] = a.expertise
+        return acc
+      }, {})
+    }
+  } catch (error) {
+    console.error('[mm] Failed to load agents.json for expertise matching:', error)
+  }
+
+  // Score agents by keyword match
+  const text = description.toLowerCase()
+  const scored = agents.map(agent => ({
+    agent,
+    score: expertise[agent.id]
+      ? expertise[agent.id].filter(kw => text.includes(kw.toLowerCase())).length
+      : 0,
+  }))
+
+  const matched = scored
+    .filter(s => s.score > 0)
+    .sort((a, b) => b.score - a.score)
+    .slice(0, 3) // Top 3
+    .map(s => s.agent)
+
+  // Fallback: if no match, assign orchestrator (id = 'main')
+  if (matched.length === 0) {
+    const orchestrator = agents.find(a => a.id === 'main' || a.id === 'orchestrator')
+    if (orchestrator) return [orchestrator]
+  }
+
+  return matched
+}
+
+/**
+ * Create a Mattermost channel for a project
+ */
+export async function createProjectChannel(name: string, displayName: string): Promise<string> {
+  const channel = await mmCreateChannel(name, displayName, `Projet: ${displayName}`, 'O') // Open channel
+  return channel.id
+}
+
+/**
+ * Invite users to a channel
+ */
+export async function inviteAgentsToChannel(channelId: string, userIds: string[]): Promise<void> {
+  for (const userId of userIds) {
+    await mmAddToChannel(channelId, userId)
+  }
+}
+
+/**
+ * Post a message to a channel (as admin)
+ */
+export async function postBriefToChannel(channelId: string, message: string): Promise<void> {
+  await mmPostAsAdmin(channelId, message)
 }

@@ -29,6 +29,7 @@
           <option value="system">System</option>
           <option value="code">Code</option>
           <option value="writing">Writing</option>
+          <option value="creative">Creative</option>
         </select>
 
         <!-- Filtre par skill -->
@@ -279,7 +280,8 @@ const GROUP_CONFIG = {
   team: [
     { key: 'system', label: 'System', icon: '🔧' },
     { key: 'code', label: 'Code', icon: '💻' },
-    { key: 'writing', label: 'Écriture', icon: '✍️' }
+    { key: 'writing', label: 'Écriture', icon: '✍️' },
+    { key: 'creative', label: 'Creative', icon: '🚀' }
   ]
 }
 

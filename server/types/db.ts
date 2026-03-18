@@ -30,6 +30,8 @@ export interface DbProject {
   lead: string | null
   channel: string | null
   channel_id: string | null
+  idea_channel_id: string | null
+  document_status: string
   workspace: string | null
   github_repo: string | null
   github_created: number

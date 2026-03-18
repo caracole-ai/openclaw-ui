@@ -82,6 +82,8 @@ CREATE TABLE IF NOT EXISTS projects (
   lead TEXT,
   channel TEXT,
   channel_id TEXT,
+  idea_channel_id TEXT,
+  document_status TEXT DEFAULT 'pending',
   workspace TEXT,
   github_repo TEXT,
   github_created INTEGER DEFAULT 0,
@@ -249,8 +251,8 @@ export function syncDataFromJson(db: Database.Database) {
   const projData = readJson('projects.json')
   if (projData?.projects) {
     const insertProj = db.prepare(`
-      INSERT OR REPLACE INTO projects (id, name, description, type, status, state, progress, lead, channel, channel_id, workspace, github_repo, github_created, current_phase, last_nudge_at, created_at, updated_at)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      INSERT OR REPLACE INTO projects (id, name, description, type, status, state, progress, lead, channel, channel_id, idea_channel_id, document_status, workspace, github_repo, github_created, current_phase, last_nudge_at, created_at, updated_at)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     `)
     const insertPA = db.prepare('INSERT OR REPLACE INTO project_agents (project_id, agent_id, role) VALUES (?, ?, ?)')
     const insertPhase = db.prepare('INSERT INTO project_phases (project_id, name, status, started_at, completed_at, sort_order) VALUES (?, ?, ?, ?, ?, ?)')
@@ -261,6 +263,7 @@ export function syncDataFromJson(db: Database.Database) {
         p.id, p.name, p.description || null, p.type || null,
         p.status || 'backlog', p.state || 'backlog', p.progress || 0,
         p.lead || null, p.channel || null, p.channelId || null,
+        p.ideaChannelId || null, p.documentStatus || 'pending',
         p.workspace || null, p.github?.repo || null, p.github?.created ? 1 : 0,
         p.currentPhase || null, p.lastNudgeAt || null,
         p.createdAt || new Date().toISOString(),

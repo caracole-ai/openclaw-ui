@@ -21,7 +21,9 @@ export default defineNuxtConfig({
   runtimeConfig: {
     apiSecret: '',
     public: {
-      apiBase: '/api'
+      apiBase: '/api',
+      mattermostUrl: process.env.MATTERMOST_URL || 'http://localhost:8065',
+      mattermostTeamId: process.env.MATTERMOST_TEAM_ID || ''
     }
   },
   
