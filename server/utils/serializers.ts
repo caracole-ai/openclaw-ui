@@ -2,7 +2,7 @@
  * Serializers — transform DB rows into JSON API format.
  * Single Responsibility: all response shaping lives here.
  */
-import type { DbProject, DbProjectAgent, DbProjectPhase, DbProjectUpdate, DbAgent, DbAgentSkill } from '~/server/types/db'
+import type { DbProject, DbProjectAgent, DbProjectPhase, DbProjectUpdate, DbAgent, DbAgentSkill, DbIdea } from '~/server/types/db'
 
 export function serializeProject(
   p: DbProject,
@@ -69,5 +69,26 @@ export function serializeAgent(
     permissions: a.permissions ? JSON.parse(a.permissions) : null,
     createdAt: a.created_at,
     ...live,
+  }
+}
+
+export function serializeIdea(i: DbIdea) {
+  return {
+    id: i.id,
+    titre: i.titre,
+    date: i.date,
+    themes: i.themes ? JSON.parse(i.themes) : [],
+    energie: i.energie,
+    statut: i.statut,
+    source: i.source,
+    projetLie: i.projet_lie,
+    scoreRealisme: i.score_realisme,
+    scoreEffort: i.score_effort,
+    scoreImpact: i.score_impact,
+    reviewedAt: i.reviewed_at,
+    bodyPreview: i.body_preview || '',
+    vaultPath: i.vault_path || '',
+    createdAt: i.created_at,
+    updatedAt: i.updated_at,
   }
 }

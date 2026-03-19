@@ -149,6 +149,27 @@ CREATE TABLE IF NOT EXISTS events (
   created_at TEXT DEFAULT (datetime('now'))
 );
 
+CREATE TABLE IF NOT EXISTS ideas (
+  id TEXT PRIMARY KEY,
+  titre TEXT NOT NULL,
+  date TEXT,
+  themes TEXT,
+  energie TEXT DEFAULT 'moyenne',
+  statut TEXT DEFAULT 'a-explorer',
+  source TEXT DEFAULT 'ideas-bot',
+  projet_lie TEXT,
+  score_realisme INTEGER DEFAULT 0,
+  score_effort INTEGER DEFAULT 0,
+  score_impact INTEGER DEFAULT 0,
+  reviewed_at TEXT,
+  vault_path TEXT,
+  body_preview TEXT,
+  created_at TEXT DEFAULT (datetime('now')),
+  updated_at TEXT DEFAULT (datetime('now'))
+);
+
+CREATE INDEX IF NOT EXISTS idx_ideas_statut ON ideas(statut);
+
 CREATE TABLE IF NOT EXISTS meta (
   key TEXT PRIMARY KEY,
   value TEXT
@@ -157,6 +178,17 @@ CREATE TABLE IF NOT EXISTS meta (
 
 function runMigrations(db: Database.Database) {
   db.exec(SCHEMA)
+
+  // Add vault_path columns if missing (idempotent migrations)
+  const addColumnIfMissing = (table: string, column: string, type: string) => {
+    try {
+      db.exec(`ALTER TABLE ${table} ADD COLUMN ${column} ${type}`)
+    } catch {
+      // Column already exists — ignore
+    }
+  }
+  addColumnIfMissing('projects', 'vault_path', 'TEXT')
+  addColumnIfMissing('agents', 'vault_path', 'TEXT')
 
   // Check if already seeded
   const seeded = db.prepare('SELECT value FROM meta WHERE key = ?').get('seeded')

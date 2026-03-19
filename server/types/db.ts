@@ -101,3 +101,22 @@ export interface DbAgentSkill {
   agent_id: string
   skill_id: string
 }
+
+export interface DbIdea {
+  id: string
+  titre: string
+  date: string | null
+  themes: string  // JSON array
+  energie: string
+  statut: string
+  source: string
+  projet_lie: string | null
+  score_realisme: number
+  score_effort: number
+  score_impact: number
+  reviewed_at: string | null
+  vault_path: string | null
+  body_preview: string | null
+  created_at: string
+  updated_at: string
+}

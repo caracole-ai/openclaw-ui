@@ -171,9 +171,31 @@
           </div>
         </NuxtLink>
 
+        <!-- Idees -->
+        <NuxtLink
+          to="/idees"
+          class="group bg-white rounded-xl shadow-sm border p-6 hover:shadow-lg hover:border-amber-300 transition-all"
+        >
+          <div class="flex items-center gap-4 mb-4">
+            <div class="w-12 h-12 bg-amber-100 rounded-xl flex items-center justify-center text-2xl group-hover:bg-amber-200 transition-colors">
+              \u26A1
+            </div>
+            <div>
+              <h3 class="text-lg font-semibold text-gray-900">Idees</h3>
+              <p class="text-sm text-gray-500">Review & promotion</p>
+            </div>
+          </div>
+          <p class="text-gray-600 text-sm">
+            Evaluer, scorer et promouvoir les idees capturees en projets.
+          </p>
+          <div class="mt-4 text-amber-600 text-sm font-medium group-hover:translate-x-1 transition-transform inline-flex items-center gap-1">
+            Voir les idees \u2192
+          </div>
+        </NuxtLink>
+
         <!-- Tests -->
-        <NuxtLink 
-          to="/tests" 
+        <NuxtLink
+          to="/tests"
           class="group bg-white rounded-xl shadow-sm border p-6 hover:shadow-lg hover:border-purple-300 transition-all"
         >
           <div class="flex items-center gap-4 mb-4">

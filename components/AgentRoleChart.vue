@@ -8,18 +8,7 @@
 <script setup lang="ts">
 import { ref, onMounted, watch } from 'vue'
 import { Chart, ArcElement, Tooltip, Legend, DoughnutController } from 'chart.js'
-import type { Agent } from '~/types/agent'
-
-Chart.register(ArcElement, Tooltip, Legend, DoughnutController)
-
-const props = defineProps<{
-  agents: Agent[]
-}>()
-
-const chartCanvas = ref<HTMLCanvasElement | null>(null)
-let chartInstance: Chart | null = null
-
-const initChart = () => {
+import type { Agent } from '~/types/agent'Avanc
   if (!chartCanvas.value) return
 
   // Compter les agents par rôle

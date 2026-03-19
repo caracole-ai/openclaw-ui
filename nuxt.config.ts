@@ -20,6 +20,10 @@ export default defineNuxtConfig({
   
   runtimeConfig: {
     apiSecret: '',
+    vaultPath: process.env.VAULT_PATH || '~/Documents/ObsidianVault',
+    projectsDir: process.env.PROJECTS_DIR || '~/Desktop/coding-projects',
+    githubOwner: process.env.GITHUB_OWNER || 'caracole-ai',
+    githubCollaborator: process.env.GITHUB_COLLABORATOR || 'joechipjoechip',
     public: {
       apiBase: '/api',
       mattermostUrl: process.env.MATTERMOST_URL || 'http://localhost:8065',

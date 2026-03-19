@@ -5,6 +5,7 @@
 import { watch } from 'chokidar'
 import { join } from 'path'
 import { resyncFromJson } from '../utils/db'
+import { syncAgentsToVault, syncProjectsToVault } from '../utils/vault'
 
 const HOME = process.env.HOME || ''
 const SOURCES_DIR = join(HOME, '.openclaw/sources')
@@ -24,7 +25,7 @@ export function unregisterWSClient(client: any) {
   wsClients.delete(client)
 }
 
-function broadcastDataUpdate() {
+export function broadcastDataUpdate() {
   const message = JSON.stringify({
     type: 'data:updated',
     timestamp: new Date().toISOString()
@@ -71,8 +72,11 @@ export default defineNitroPlugin((nitroApp) => {
       debounceTimer = setTimeout(() => {
         try {
           resyncFromJson()
+          // Propagate JSON changes to vault files (create missing, update frontmatter)
+          syncAgentsToVault()
+          syncProjectsToVault()
           broadcastDataUpdate()
-          console.log('[watcher] DB resynced and clients notified')
+          console.log('[watcher] DB resynced + vault updated + clients notified')
         } catch (err) {
           console.error('[watcher] Failed to resync:', err)
         }
