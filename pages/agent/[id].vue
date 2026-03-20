@@ -95,9 +95,18 @@
                 <div class="text-[10px] text-white/50 font-medium uppercase tracking-wider leading-none">Contexte</div>
                 <div class="text-lg font-bold leading-tight mt-0.5" :class="percentClassHeader">{{ liveStats.maxPercentUsed }}%</div>
               </div>
-              <div class="bg-white/10 backdrop-blur-sm rounded-lg px-3 py-2 border border-white/10 min-w-[80px]">
+              <div class="bg-white/10 backdrop-blur-sm rounded-lg px-3 py-2 border border-white/10 min-w-[80px] relative">
                 <div class="text-[10px] text-white/50 font-medium uppercase tracking-wider leading-none">Modèle</div>
-                <div class="text-lg font-bold text-white leading-tight mt-0.5">{{ formatModel(agent.model) }}</div>
+                <select
+                  :value="agent.model"
+                  @change="updateModel(($event.target as HTMLSelectElement).value)"
+                  class="text-sm font-bold text-white leading-tight mt-0.5 bg-transparent border-none outline-none cursor-pointer appearance-none w-full pr-4"
+                  style="background-image: url('data:image/svg+xml;charset=UTF-8,%3csvg xmlns=%27http://www.w3.org/2000/svg%27 viewBox=%270 0 24 24%27 fill=%27white%27%3e%3cpath d=%27M7 10l5 5 5-5z%27/%3e%3c/svg%3e'); background-repeat: no-repeat; background-position: right 0 center; background-size: 16px;"
+                >
+                  <option v-for="m in availableModels" :key="m.value" :value="m.value" class="text-gray-900">
+                    {{ m.label }}
+                  </option>
+                </select>
               </div>
             </div>
           </div>
@@ -451,6 +460,29 @@ const liveStats = computed(() => liveOverride.value || ({
   maxPercentUsed: agent.value?.maxPercentUsed || 0,
 }))
 const liveSessions = computed(() => agent.value?.sessions || [])
+
+// Model selection
+const availableModels = [
+  { value: 'anthropic/claude-opus-4-6', label: 'Opus 4.6' },
+  { value: 'anthropic/claude-opus-4-5', label: 'Opus 4.5' },
+  { value: 'anthropic/claude-sonnet-4-6', label: 'Sonnet 4.6' },
+  { value: 'anthropic/claude-sonnet-4-5', label: 'Sonnet 4.5' },
+  { value: 'anthropic/claude-haiku-4-5', label: 'Haiku 4.5' },
+]
+
+async function updateModel(newModel: string) {
+  if (!agent.value || agent.value.model === newModel) return
+  try {
+    await $fetch(`/api/agents/${agentId.value}`, {
+      method: 'PATCH',
+      body: { model: newModel }
+    })
+    await refreshKeepScroll()
+  } catch (err: any) {
+    console.error('Failed to update model:', err)
+    alert(`Erreur: ${err.message || 'Impossible de changer le modèle'}`)
+  }
+}
 
 // Drag & Drop state
 const draggingSkill = ref<string | null>(null)

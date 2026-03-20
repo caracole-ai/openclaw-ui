@@ -76,12 +76,20 @@
         <div class="font-semibold text-gray-900">{{ agent.projects?.length ?? 0 }}</div>
       </div>
 
-      <!-- Modèle -->
+      <!-- Modèle (sélectionnable) -->
       <div class="bg-gray-50 rounded-lg p-2">
         <div class="text-xs text-gray-500 mb-1">Modèle</div>
-        <span class="px-2 py-0.5 bg-purple-100 text-purple-700 rounded text-xs font-medium">
-          {{ formatModel(agent.model) }}
-        </span>
+        <select
+          :value="agent.model"
+          @click.prevent.stop
+          @change.stop="updateModel(($event.target as HTMLSelectElement).value)"
+          class="px-2 py-0.5 bg-purple-100 text-purple-700 rounded text-xs font-medium border-none outline-none cursor-pointer appearance-none w-full pr-5"
+          style="background-image: url('data:image/svg+xml;charset=UTF-8,%3csvg xmlns=%27http://www.w3.org/2000/svg%27 viewBox=%270 0 24 24%27 fill=%27%236d28d9%27%3e%3cpath d=%27M7 10l5 5 5-5z%27/%3e%3c/svg%3e'); background-repeat: no-repeat; background-position: right 2px center; background-size: 14px;"
+        >
+          <option v-for="m in availableModels" :key="m.value" :value="m.value">
+            {{ m.label }}
+          </option>
+        </select>
       </div>
     </div>
 
@@ -104,6 +112,32 @@ const props = defineProps<{
   agent: Agent
   compact?: boolean
 }>()
+
+const emit = defineEmits<{
+  updated: []
+}>()
+
+const availableModels = [
+  { value: 'anthropic/claude-opus-4-6', label: 'Opus 4.6' },
+  { value: 'anthropic/claude-opus-4-5', label: 'Opus 4.5' },
+  { value: 'anthropic/claude-sonnet-4-6', label: 'Sonnet 4.6' },
+  { value: 'anthropic/claude-sonnet-4-5', label: 'Sonnet 4.5' },
+  { value: 'anthropic/claude-haiku-4-5', label: 'Haiku 4.5' },
+]
+
+async function updateModel(newModel: string) {
+  if (props.agent.model === newModel) return
+  try {
+    await $fetch(`/api/agents/${props.agent.id}`, {
+      method: 'PATCH',
+      body: { model: newModel }
+    })
+    emit('updated')
+  } catch (err: any) {
+    console.error('Failed to update model:', err)
+    alert(`Erreur: ${err.message || 'Impossible de changer le modèle'}`)
+  }
+}
 
 const initial = computed(() =>
   props.agent.name.charAt(0).toUpperCase()

@@ -542,3 +542,45 @@ export function fullReconciliation(): void {
   syncProjectsToVault()
   console.log('[vault] Full reconciliation complete')
 }
+
+/**
+ * Update Kanban.md in the vault — add a project link under the specified column.
+ * Skips if the project is already listed anywhere in the Kanban.
+ */
+export function updateKanbanBoard(projectSlug: string, displayName: string, column: string): void {
+  const kanbanPath = join(vaultConfig.basePath, 'Kanban.md')
+  if (!existsSync(kanbanPath)) {
+    console.warn('[vault] Kanban.md not found')
+    return
+  }
+
+  const content = readFileSync(kanbanPath, 'utf-8')
+  const entry = `- [ ] [[${projectSlug}]]`
+
+  // Skip if already present
+  if (content.includes(`[[${projectSlug}]]`) || content.includes(`[[${projectSlug}|`)) return
+
+  // Map DB states to Kanban headers
+  const headerMap: Record<string, string> = {
+    backlog: '## Idées',
+    planning: '## Projets',
+    build: '## Build',
+    review: '## Review',
+    delivery: '## Delivery',
+    rex: '## REX',
+    done: '## Done',
+  }
+
+  const header = headerMap[column]
+  if (!header) return
+
+  const headerIndex = content.indexOf(header)
+  if (headerIndex === -1) return
+
+  // Insert after the header line
+  const lineEnd = content.indexOf('\n', headerIndex)
+  if (lineEnd === -1) return
+
+  const updated = content.slice(0, lineEnd + 1) + entry + '\n' + content.slice(lineEnd + 1)
+  writeFileSync(kanbanPath, updated, 'utf-8')
+}

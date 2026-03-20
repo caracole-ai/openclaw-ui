@@ -200,6 +200,7 @@
                 :key="agent.id"
                 :agent="agent"
                 :compact="viewMode === 'compact'"
+                @updated="fetchAgents()"
               />
             </div>
           </div>
@@ -220,6 +221,7 @@
         :key="agent.id"
         :agent="agent"
         :compact="viewMode === 'compact'"
+        @updated="fetchAgents()"
       />
     </div>
   </div>

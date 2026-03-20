@@ -4,6 +4,7 @@
  * Creates a Projets/*.md file in the vault and inserts into DB.
  */
 import { getDb } from '~/server/utils/db'
+import { launchPipeline } from '~/server/utils/pipeline'
 import { serializeIdea } from '~/server/utils/serializers'
 import {
   parseVaultFile,
@@ -11,6 +12,7 @@ import {
   updateVaultFrontmatter,
   getVaultFilePath,
   toVaultSlug,
+  updateKanbanBoard,
   vaultConfig,
 } from '~/server/utils/vault'
 import { basename } from 'path'
@@ -45,7 +47,7 @@ export default defineEventHandler(async (event) => {
     titre: projectName,
     id: slug,
     type: projectType,
-    statut: 'cadrage',
+    statut: 'planification',
     progression: 0,
     lead: '',
     equipe: [],
@@ -84,7 +86,7 @@ export default defineEventHandler(async (event) => {
   db.prepare(`
     INSERT OR REPLACE INTO projects (id, name, description, type, status, state, progress, vault_path, created_at, updated_at)
     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-  `).run(slug, projectName, '', projectType, 'backlog', 'backlog', 0, projectPath, now, now)
+  `).run(slug, projectName, '', projectType, 'planning', 'planning', 0, projectPath, now, now)
 
   // Assign agents
   if (body.agents && Array.isArray(body.agents)) {
@@ -120,6 +122,24 @@ export default defineEventHandler(async (event) => {
     JSON.stringify({ ideaId: id, projectId: slug }),
     now
   )
+
+  // 7. Update Kanban board in Obsidian
+  try {
+    updateKanbanBoard(slug, projectName, 'planning')
+  } catch (err) {
+    console.error(`[promote] Failed to update Kanban:`, err)
+  }
+
+  // 8. Launch pipeline (fire-and-forget)
+  try {
+    launchPipeline({
+      projectId: slug,
+      projectName,
+      ideaVaultPath: idea.vault_path || '',
+    })
+  } catch (err) {
+    console.error(`[promote] Pipeline launch failed:`, err)
+  }
 
   return {
     status: 'success',

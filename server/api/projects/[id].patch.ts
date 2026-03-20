@@ -4,6 +4,7 @@
  * Hooks: state transition to review/rex triggers ceremony channel creation
  */
 import { getDb } from '~/server/utils/db'
+import { launchPipeline } from '~/server/utils/pipeline'
 import { serializeProject } from '~/server/utils/serializers'
 import type { DbProject, DbProjectAgent, DbProjectPhase, DbProjectUpdate } from '~/server/types/db'
 
@@ -89,6 +90,26 @@ export default defineEventHandler(async (event) => {
     }).catch(err => {
       console.error(`[ceremony] Failed to trigger ${newState} for ${id}:`, err)
     })
+  }
+
+  // --- Pipeline hook: planning state triggers idea-to-specs pipeline ---
+  if (newState && newState !== oldState && newState === 'planning') {
+    if (existing.document_status !== 'completed') {
+      const idea = db.prepare("SELECT vault_path FROM ideas WHERE projet_lie LIKE ?")
+        .get(`%${id}%`) as { vault_path: string } | undefined
+
+      if (idea?.vault_path) {
+        try {
+          launchPipeline({
+            projectId: id,
+            projectName: existing.name,
+            ideaVaultPath: idea.vault_path,
+          })
+        } catch (err) {
+          console.error(`[patch] Pipeline launch failed for ${id}:`, err)
+        }
+      }
+    }
   }
 
   // Return full project (same format as GET)
