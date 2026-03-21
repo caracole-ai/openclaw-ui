@@ -6,6 +6,7 @@
 import { watch } from 'chokidar'
 import { join } from 'path'
 import { syncVaultToDb, fullReconciliation, vaultConfig } from '../utils/vault'
+import { invalidateIndex } from '../utils/vault-index'
 import { broadcastDataUpdate } from './source-watcher'
 
 let debounceTimer: NodeJS.Timeout | null = null
@@ -58,6 +59,7 @@ export default defineNitroPlugin((nitroApp) => {
       }
 
       debounceTimer = setTimeout(() => {
+        invalidateIndex()
         safeSync(() => syncVaultToDb(), 'vault→DB sync')
       }, DEBOUNCE_MS)
     })

@@ -15,6 +15,7 @@
     "test:coverage": "vitest run --coverage"
   },
   "dependencies": {
+    "@tailwindcss/typography": "^0.5.19",
     "better-sqlite3": "^12.6.2",
     "chart.js": "^4.5.1",
     "chokidar": "^5.0.0",

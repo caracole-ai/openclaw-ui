@@ -14,6 +14,7 @@
             <NuxtLink to="/idees" class="px-3 py-1.5 text-sm text-gray-600 hover:text-gray-900 hover:bg-gray-100 rounded-lg transition-colors" active-class="bg-gray-100 text-gray-900 font-medium">Idees</NuxtLink>
             <NuxtLink to="/skills" class="px-3 py-1.5 text-sm text-gray-600 hover:text-gray-900 hover:bg-gray-100 rounded-lg transition-colors" active-class="bg-gray-100 text-gray-900 font-medium">Skills</NuxtLink>
             <NuxtLink to="/mcps" class="px-3 py-1.5 text-sm text-gray-600 hover:text-gray-900 hover:bg-gray-100 rounded-lg transition-colors" active-class="bg-gray-100 text-gray-900 font-medium">MCPs</NuxtLink>
+            <NuxtLink to="/obsidian" class="px-3 py-1.5 text-sm text-gray-600 hover:text-gray-900 hover:bg-gray-100 rounded-lg transition-colors" active-class="bg-gray-100 text-gray-900 font-medium">Vault</NuxtLink>
             <NuxtLink to="/tokens" class="px-3 py-1.5 text-sm text-gray-600 hover:text-gray-900 hover:bg-gray-100 rounded-lg transition-colors" active-class="bg-gray-100 text-gray-900 font-medium">Tokens</NuxtLink>
             <NuxtLink to="/tests" class="px-3 py-1.5 text-sm text-gray-600 hover:text-gray-900 hover:bg-gray-100 rounded-lg transition-colors" active-class="bg-gray-100 text-gray-900 font-medium">🧪 Tests</NuxtLink>
           </nav>

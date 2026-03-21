@@ -459,7 +459,7 @@
                 </div>
                 <div 
                   v-else
-                  class="prose prose-sm max-w-none prose-headings:text-gray-900 prose-a:text-blue-600"
+                  class="prose prose-sm max-w-none prose-headings:text-gray-900 prose-a:text-blue-600 prose-pre:bg-slate-50 prose-pre:text-slate-700 prose-pre:border prose-pre:border-slate-200 prose-code:bg-slate-100 prose-code:text-slate-600 prose-code:before:content-none prose-code:after:content-none"
                   v-html="renderedMarkdown"
                 ></div>
               </div>
