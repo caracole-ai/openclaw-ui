@@ -3,7 +3,7 @@
  * Reads a doc from project workspace. Supports subfolders via ?path=reviews/file.md
  */
 import { readFile } from 'fs/promises'
-import { existsSync } from 'fs'
+import { existsSync, readFileSync } from 'fs'
 import { join, resolve, relative } from 'path'
 import { getDb } from '~/server/utils/db'
 
@@ -16,6 +16,24 @@ export default defineEventHandler(async (event) => {
   const docPath = (query.path as string) || filename
 
   if (!docPath.endsWith('.md')) throw createError({ statusCode: 400, statusMessage: 'Seuls les fichiers .md sont autorisés' })
+
+  // Handle vault file reads (Obsidian source of truth)
+  const queryPath = getQuery(event).path as string | undefined
+  if (queryPath && queryPath.includes('ObsidianVault')) {
+    if (!existsSync(queryPath)) {
+      throw createError({ statusCode: 404, statusMessage: 'Vault file not found' })
+    }
+    // Security: must be within vault
+    const vaultBase = join(process.env.HOME || '', 'Documents/ObsidianVault')
+    const resolved = resolve(queryPath)
+    if (!resolved.startsWith(vaultBase)) {
+      throw createError({ statusCode: 403, statusMessage: 'Access denied' })
+    }
+    const content = readFileSync(resolved, 'utf-8')
+    // Strip frontmatter for display
+    const match = content.match(/^---\n[\s\S]*?\n---\n?([\s\S]*)$/)
+    return { content: match ? match[1].trim() : content, source: 'vault' }
+  }
 
   const db = getDb()
   const project = db.prepare('SELECT workspace FROM projects WHERE id = ?').get(id) as any

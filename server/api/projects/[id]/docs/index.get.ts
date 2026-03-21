@@ -3,7 +3,7 @@
  * Lists .md files in project workspace (recursive).
  */
 import { readdir, stat } from 'fs/promises'
-import { existsSync } from 'fs'
+import { existsSync, readdirSync, statSync } from 'fs'
 import { join, relative } from 'path'
 import { getDb } from '~/server/utils/db'
 
@@ -54,11 +54,58 @@ export default defineEventHandler(async (event) => {
   const db = getDb()
   const project = db.prepare('SELECT workspace FROM projects WHERE id = ?').get(id) as any
   if (!project) throw createError({ statusCode: 404, statusMessage: `Projet '${id}' non trouvé` })
-  if (!project.workspace || !existsSync(project.workspace)) return { docs: [] }
-
   try {
-    const docs = await scanDir(project.workspace, project.workspace)
-    return { docs }
+    // Scan workspace if it exists
+    const docs = (project.workspace && existsSync(project.workspace))
+      ? await scanDir(project.workspace, project.workspace)
+      : []
+
+    // Scan Obsidian vault for related docs
+    const vaultBase = join(process.env.HOME || '', 'Documents/ObsidianVault')
+    const vaultDocs: typeof docs = []
+
+    // 1. Fiche projet + specs in Projets/
+    const projetsDir = join(vaultBase, 'Projets')
+    if (existsSync(projetsDir)) {
+      const files = readdirSync(projetsDir)
+      for (const file of files) {
+        if (file.endsWith('.md') && (file.startsWith(id) || file.includes(id))) {
+          const filePath = join(projetsDir, file)
+          const stat = statSync(filePath)
+          vaultDocs.push({
+            name: file,
+            path: filePath,
+            folder: 'Obsidian/Projets',
+            size: stat.size,
+            modifiedAt: stat.mtime.toISOString(),
+            source: 'vault',
+          })
+        }
+      }
+    }
+
+    // 2. MetaFlow docs (shared pipeline documentation)
+    const metaflowDir = join(vaultBase, 'MetaFlow')
+    if (existsSync(metaflowDir)) {
+      const files = readdirSync(metaflowDir)
+      for (const file of files) {
+        if (file.endsWith('.md')) {
+          const filePath = join(metaflowDir, file)
+          const stat = statSync(filePath)
+          vaultDocs.push({
+            name: file,
+            path: filePath,
+            folder: 'Obsidian/MetaFlow',
+            size: stat.size,
+            modifiedAt: stat.mtime.toISOString(),
+            source: 'vault',
+          })
+        }
+      }
+    }
+
+    // Merge: vault docs first (source of truth), then workspace docs
+    return { docs: [...vaultDocs, ...docs] }
   } catch {
     return { docs: [] }
   }

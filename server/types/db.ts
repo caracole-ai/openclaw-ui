@@ -102,6 +102,24 @@ export interface DbAgentSkill {
   skill_id: string
 }
 
+export interface DbMcp {
+  id: string
+  name: string
+  description: string | null
+  version: string | null
+  source: string | null
+  path: string | null
+  config: string | null  // JSON string
+  installed_at: string | null
+  installed_by: string | null
+  status: string
+}
+
+export interface DbAgentMcp {
+  agent_id: string
+  mcp_id: string
+}
+
 export interface DbIdea {
   id: string
   titre: string

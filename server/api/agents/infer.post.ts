@@ -7,13 +7,14 @@ async function llmInfer(prompt: string, context: { teams: string[], skills: stri
 
   const systemPrompt = `Tu crées des profils d'agents IA. Contexte :
 - Équipes : ${context.teams.join(', ')} (ou nouvelles)
-- Skills : ${context.skills.join(', ')}
+- Skills (outils internes) : ${context.skills.join(', ')}
+- MCPs (serveurs MCP externes) : ${context.mcps.join(', ')}
 - Projets : ${context.projects.join(', ')}
 
 Réponds UNIQUEMENT en JSON valide, sans backticks :
-{"id":"lowercase","name":"Prénom","emoji":"emoji","role":"rôle","team":"team","model":"","skills":[],"projects":[],"soulDescription":"description fr, 2-3 phrases"}
+{"id":"lowercase","name":"Prénom","emoji":"emoji","role":"rôle","team":"team","model":"","skills":[],"mcps":[],"projects":[],"soulDescription":"description fr, 2-3 phrases"}
 
-Règles : id=prénom minuscule, emoji=reflet du rôle, skills pertinents, team=code|system|writing|creative|ops, model vide.`
+Règles : id=prénom minuscule, emoji=reflet du rôle, skills=outils internes, mcps=serveurs MCP, team=code|system|writing|creative|ops, model vide.`
 
   try {
     const res = await fetch('https://api.anthropic.com/v1/messages', {
@@ -41,46 +42,46 @@ Règles : id=prénom minuscule, emoji=reflet du rôle, skills pertinents, team=c
 }
 
 // ─── Role → metadata mapping ──────────────────────────────────
-const ROLE_PROFILES: Record<string, { emoji: string, team: string, skills: string[], soulTemplate: string }> = {
+const ROLE_PROFILES: Record<string, { emoji: string, team: string, skills: string[], mcps: string[], soulTemplate: string }> = {
   // Code roles
-  'developer':   { emoji: '💻', team: 'code', skills: ['github', 'coding-agent', 'chrome-devtools-mcp'], soulTemplate: 'Développeur·se rigoureux·se, code propre et efficace.' },
-  'dev':         { emoji: '💻', team: 'code', skills: ['github', 'coding-agent', 'chrome-devtools-mcp'], soulTemplate: 'Développeur·se rigoureux·se, code propre et efficace.' },
-  'développeur': { emoji: '💻', team: 'code', skills: ['github', 'coding-agent', 'chrome-devtools-mcp'], soulTemplate: 'Développeur·se rigoureux·se, code propre et efficace.' },
-  'développeuse':{ emoji: '💻', team: 'code', skills: ['github', 'coding-agent', 'chrome-devtools-mcp'], soulTemplate: 'Développeuse rigoureuse, code propre et efficace.' },
-  'architect':   { emoji: '🏗️', team: 'code', skills: ['github', 'coding-agent'], soulTemplate: 'Architecte logiciel, vision macro et patterns solides.' },
-  'architecte':  { emoji: '🏗️', team: 'code', skills: ['github', 'coding-agent'], soulTemplate: 'Architecte logiciel, vision macro et patterns solides.' },
-  'devops':      { emoji: '⚙️', team: 'ops', skills: ['github', 'coding-agent'], soulTemplate: 'Spécialiste DevOps, infra fiable et automatisée.' },
-  'config':      { emoji: '⚙️', team: 'code', skills: ['github', 'coding-agent', 'mattermost-mcp'], soulTemplate: 'Expert config et intégration, tout doit être branché proprement.' },
-  'reviewer':    { emoji: '🔍', team: 'code', skills: ['github', 'coding-agent'], soulTemplate: 'Code reviewer exigeant, feedback constructif et précis.' },
-  'tester':      { emoji: '🧪', team: 'code', skills: ['github', 'coding-agent', 'chrome-devtools-mcp'], soulTemplate: 'Spécialiste QA, rien ne passe sans tests.' },
-  'qa':          { emoji: '🧪', team: 'code', skills: ['github', 'coding-agent', 'chrome-devtools-mcp'], soulTemplate: 'Spécialiste QA, rien ne passe sans tests.' },
+  'developer':   { emoji: '💻', team: 'code', skills: ['github', 'coding-agent'], mcps: ['chrome-devtools-mcp'], soulTemplate: 'Développeur·se rigoureux·se, code propre et efficace.' },
+  'dev':         { emoji: '💻', team: 'code', skills: ['github', 'coding-agent'], mcps: ['chrome-devtools-mcp'], soulTemplate: 'Développeur·se rigoureux·se, code propre et efficace.' },
+  'développeur': { emoji: '💻', team: 'code', skills: ['github', 'coding-agent'], mcps: ['chrome-devtools-mcp'], soulTemplate: 'Développeur·se rigoureux·se, code propre et efficace.' },
+  'développeuse':{ emoji: '💻', team: 'code', skills: ['github', 'coding-agent'], mcps: ['chrome-devtools-mcp'], soulTemplate: 'Développeuse rigoureuse, code propre et efficace.' },
+  'architect':   { emoji: '🏗️', team: 'code', skills: ['github', 'coding-agent'], mcps: [], soulTemplate: 'Architecte logiciel, vision macro et patterns solides.' },
+  'architecte':  { emoji: '🏗️', team: 'code', skills: ['github', 'coding-agent'], mcps: [], soulTemplate: 'Architecte logiciel, vision macro et patterns solides.' },
+  'devops':      { emoji: '⚙️', team: 'ops', skills: ['github', 'coding-agent'], mcps: [], soulTemplate: 'Spécialiste DevOps, infra fiable et automatisée.' },
+  'config':      { emoji: '⚙️', team: 'code', skills: ['github', 'coding-agent'], mcps: ['mattermost-mcp'], soulTemplate: 'Expert config et intégration, tout doit être branché proprement.' },
+  'reviewer':    { emoji: '🔍', team: 'code', skills: ['github', 'coding-agent'], mcps: [], soulTemplate: 'Code reviewer exigeant, feedback constructif et précis.' },
+  'tester':      { emoji: '🧪', team: 'code', skills: ['github', 'coding-agent'], mcps: ['chrome-devtools-mcp'], soulTemplate: 'Spécialiste QA, rien ne passe sans tests.' },
+  'qa':          { emoji: '🧪', team: 'code', skills: ['github', 'coding-agent'], mcps: ['chrome-devtools-mcp'], soulTemplate: 'Spécialiste QA, rien ne passe sans tests.' },
 
   // Creative roles
-  'designer':    { emoji: '🎨', team: 'creative', skills: ['nano-banana-pro', 'peekaboo'], soulTemplate: 'Designer créatif·ve, esthétique et fonctionnel.' },
-  'illustrateur':{ emoji: '🖌️', team: 'creative', skills: ['nano-banana-pro'], soulTemplate: 'Illustrateur passionné, images qui racontent des histoires.' },
-  'illustratrice':{ emoji: '🖌️', team: 'creative', skills: ['nano-banana-pro'], soulTemplate: 'Illustratrice passionnée, images qui racontent des histoires.' },
-  'ui':          { emoji: '🎯', team: 'creative', skills: ['peekaboo', 'chrome-devtools-mcp'], soulTemplate: 'Spécialiste UI, interfaces intuitives et élégantes.' },
-  'ux':          { emoji: '🧭', team: 'creative', skills: ['peekaboo', 'chrome-devtools-mcp'], soulTemplate: 'Spécialiste UX, l\'utilisateur d\'abord.' },
+  'designer':    { emoji: '🎨', team: 'creative', skills: ['nano-banana-pro'], mcps: ['peekaboo'], soulTemplate: 'Designer créatif·ve, esthétique et fonctionnel.' },
+  'illustrateur':{ emoji: '🖌️', team: 'creative', skills: ['nano-banana-pro'], mcps: [], soulTemplate: 'Illustrateur passionné, images qui racontent des histoires.' },
+  'illustratrice':{ emoji: '🖌️', team: 'creative', skills: ['nano-banana-pro'], mcps: [], soulTemplate: 'Illustratrice passionnée, images qui racontent des histoires.' },
+  'ui':          { emoji: '🎯', team: 'creative', skills: [], mcps: ['peekaboo', 'chrome-devtools-mcp'], soulTemplate: 'Spécialiste UI, interfaces intuitives et élégantes.' },
+  'ux':          { emoji: '🧭', team: 'creative', skills: [], mcps: ['peekaboo', 'chrome-devtools-mcp'], soulTemplate: 'Spécialiste UX, l\'utilisateur d\'abord.' },
 
   // Writing roles
-  'writer':      { emoji: '✍️', team: 'writing', skills: [], soulTemplate: 'Rédacteur·rice précis·e, chaque mot compte.' },
-  'rédacteur':   { emoji: '✍️', team: 'writing', skills: [], soulTemplate: 'Rédacteur précis, chaque mot compte.' },
-  'rédactrice':  { emoji: '✍️', team: 'writing', skills: [], soulTemplate: 'Rédactrice précise, chaque mot compte.' },
-  'romancier':   { emoji: '📖', team: 'writing', skills: [], soulTemplate: 'Romancier passionné, narrateur d\'univers.' },
-  'romancière':  { emoji: '📖', team: 'writing', skills: [], soulTemplate: 'Romancière passionnée, narratrice d\'univers.' },
-  'copywriter':  { emoji: '📝', team: 'writing', skills: [], soulTemplate: 'Copywriter percutant, mots qui vendent.' },
-  'poète':       { emoji: '🌹', team: 'writing', skills: [], soulTemplate: 'Poète sensible, maître des mots et des rythmes.' },
-  'scénariste':  { emoji: '🎬', team: 'writing', skills: [], soulTemplate: 'Scénariste inventif·ve, dialogues et structure narrative.' },
-  'journaliste': { emoji: '📰', team: 'writing', skills: [], soulTemplate: 'Journaliste rigoureux·se, faits et clarté.' },
-  'traducteur':  { emoji: '🌐', team: 'writing', skills: [], soulTemplate: 'Traducteur fidèle, nuances et contexte culturel.' },
-  'traductrice': { emoji: '🌐', team: 'writing', skills: [], soulTemplate: 'Traductrice fidèle, nuances et contexte culturel.' },
+  'writer':      { emoji: '✍️', team: 'writing', skills: [], mcps: [], soulTemplate: 'Rédacteur·rice précis·e, chaque mot compte.' },
+  'rédacteur':   { emoji: '✍️', team: 'writing', skills: [], mcps: [], soulTemplate: 'Rédacteur précis, chaque mot compte.' },
+  'rédactrice':  { emoji: '✍️', team: 'writing', skills: [], mcps: [], soulTemplate: 'Rédactrice précise, chaque mot compte.' },
+  'romancier':   { emoji: '📖', team: 'writing', skills: [], mcps: [], soulTemplate: 'Romancier passionné, narrateur d\'univers.' },
+  'romancière':  { emoji: '📖', team: 'writing', skills: [], mcps: [], soulTemplate: 'Romancière passionnée, narratrice d\'univers.' },
+  'copywriter':  { emoji: '📝', team: 'writing', skills: [], mcps: [], soulTemplate: 'Copywriter percutant, mots qui vendent.' },
+  'poète':       { emoji: '🌹', team: 'writing', skills: [], mcps: [], soulTemplate: 'Poète sensible, maître des mots et des rythmes.' },
+  'scénariste':  { emoji: '🎬', team: 'writing', skills: [], mcps: [], soulTemplate: 'Scénariste inventif·ve, dialogues et structure narrative.' },
+  'journaliste': { emoji: '📰', team: 'writing', skills: [], mcps: [], soulTemplate: 'Journaliste rigoureux·se, faits et clarté.' },
+  'traducteur':  { emoji: '🌐', team: 'writing', skills: [], mcps: [], soulTemplate: 'Traducteur fidèle, nuances et contexte culturel.' },
+  'traductrice': { emoji: '🌐', team: 'writing', skills: [], mcps: [], soulTemplate: 'Traductrice fidèle, nuances et contexte culturel.' },
 
   // Ops roles
-  'monitor':     { emoji: '📊', team: 'ops', skills: [], soulTemplate: 'Monitoring et alertes, rien n\'échappe à la surveillance.' },
-  'orchestrator':{ emoji: '🎭', team: 'system', skills: ['mattermost-mcp'], soulTemplate: 'Orchestrateur multi-agents, coordination efficace.' },
+  'monitor':     { emoji: '📊', team: 'ops', skills: [], mcps: [], soulTemplate: 'Monitoring et alertes, rien n\'échappe à la surveillance.' },
+  'orchestrator':{ emoji: '🎭', team: 'system', skills: [], mcps: ['mattermost-mcp'], soulTemplate: 'Orchestrateur multi-agents, coordination efficace.' },
 
   // Default
-  'assistant':   { emoji: '🤖', team: 'system', skills: [], soulTemplate: 'Assistant polyvalent, toujours prêt à aider.' },
+  'assistant':   { emoji: '🤖', team: 'system', skills: [], mcps: [], soulTemplate: 'Assistant polyvalent, toujours prêt à aider.' },
 }
 
 // ─── Team keywords ─────────────────────────────────────────────
@@ -162,6 +163,7 @@ function inferAgent(prompt: string) {
     team,
     model: '',
     skills: matchedProfile.skills,
+    mcps: matchedProfile.mcps,
     projects: [] as string[],
     soulDescription,
   }
@@ -178,6 +180,7 @@ export default defineEventHandler(async (event) => {
   const context = {
     teams: (db.prepare('SELECT id FROM teams').all() as any[]).map(t => t.id),
     skills: (db.prepare('SELECT id FROM skills').all() as any[]).map(s => s.id),
+    mcps: (db.prepare('SELECT id FROM mcps').all() as any[]).map(m => m.id),
     projects: (db.prepare('SELECT id FROM projects').all() as any[]).map(p => p.id),
   }
 
@@ -196,6 +199,7 @@ export default defineEventHandler(async (event) => {
         team: llmResult.team,
         model: llmResult.model || '',
         skills: llmResult.skills || [],
+        mcps: llmResult.mcps || [],
         projects: llmResult.projects || [],
       },
       soulDescription: llmResult.soulDescription || '',
@@ -216,6 +220,7 @@ export default defineEventHandler(async (event) => {
       team: agent.team,
       model: agent.model,
       skills: agent.skills,
+      mcps: agent.mcps,
       projects: agent.projects,
     },
     soulDescription: agent.soulDescription,

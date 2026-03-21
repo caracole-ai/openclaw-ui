@@ -190,10 +190,8 @@
 
           <!-- Tab: Skills -->
           <div v-if="activeTab === 'skills'" class="space-y-6">
-            <!-- Drag & Drop Editor -->
             <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
-              
-              <!-- Assigned Skills (Left Column) -->
+              <!-- Assigned Skills -->
               <div class="bg-gradient-to-br from-blue-50 to-indigo-50 rounded-xl border-2 border-blue-200 p-4">
                 <div class="flex items-center justify-between mb-4">
                   <h3 class="text-sm font-bold text-blue-900 flex items-center gap-2">
@@ -204,9 +202,8 @@
                     {{ agent.skills?.length || 0 }}
                   </span>
                 </div>
-                
-                <div 
-                  @drop="handleDrop($event, 'assigned')"
+                <div
+                  @drop="handleSkillDrop($event, 'assigned')"
                   @dragover.prevent
                   @dragenter.prevent="dragOverZone = 'assigned'"
                   @dragleave="dragOverZone = null"
@@ -217,8 +214,8 @@
                     v-for="skillId in agent.skills"
                     :key="'assigned-' + skillId"
                     draggable="true"
-                    @dragstart="handleDragStart($event, skillId, 'assigned')"
-                    @dragend="handleDragEnd"
+                    @dragstart="handleSkillDragStart($event, skillId, 'assigned')"
+                    @dragend="handleSkillDragEnd"
                     class="flex items-center justify-between p-3 bg-white rounded-lg border-2 shadow-sm cursor-grab active:cursor-grabbing hover:shadow-md hover:scale-[1.02] transition-all group"
                     :class="draggingSkill === skillId ? 'opacity-50 scale-95' : ''"
                   >
@@ -230,20 +227,14 @@
                       </div>
                     </div>
                     <div class="flex items-center gap-2">
-                      <span class="text-xs text-gray-400 opacity-0 group-hover:opacity-100 transition-opacity">
-                        Drag →
-                      </span>
+                      <span class="text-xs text-gray-400 opacity-0 group-hover:opacity-100 transition-opacity">Drag →</span>
                       <button
                         @click.stop="removeSkill(skillId)"
                         class="w-6 h-6 flex items-center justify-center rounded-full bg-red-100 text-red-600 hover:bg-red-200 opacity-0 group-hover:opacity-100 transition-opacity"
                         title="Retirer"
-                      >
-                        ✕
-                      </button>
+                      >✕</button>
                     </div>
                   </div>
-                  
-                  <!-- Empty state -->
                   <div v-if="!agent.skills || agent.skills.length === 0" class="flex flex-col items-center justify-center py-12 text-gray-400">
                     <span class="text-4xl mb-2">📭</span>
                     <span class="text-sm">Aucun skill assigné</span>
@@ -251,8 +242,7 @@
                   </div>
                 </div>
               </div>
-              
-              <!-- Available Skills (Right Column) -->
+              <!-- Available Skills -->
               <div class="bg-gradient-to-br from-gray-50 to-slate-50 rounded-xl border-2 border-gray-300 p-4">
                 <div class="flex items-center justify-between mb-4">
                   <h3 class="text-sm font-bold text-gray-700 flex items-center gap-2">
@@ -263,9 +253,8 @@
                     {{ availableSkills.length }}
                   </span>
                 </div>
-                
-                <div 
-                  @drop="handleDrop($event, 'available')"
+                <div
+                  @drop="handleSkillDrop($event, 'available')"
                   @dragover.prevent
                   @dragenter.prevent="dragOverZone = 'available'"
                   @dragleave="dragOverZone = null"
@@ -276,8 +265,8 @@
                     v-for="skill in availableSkills"
                     :key="'available-' + skill.id"
                     draggable="true"
-                    @dragstart="handleDragStart($event, skill.id, 'available')"
-                    @dragend="handleDragEnd"
+                    @dragstart="handleSkillDragStart($event, skill.id, 'available')"
+                    @dragend="handleSkillDragEnd"
                     class="flex items-center justify-between p-3 bg-white rounded-lg border-2 shadow-sm cursor-grab active:cursor-grabbing hover:shadow-md hover:scale-[1.02] transition-all group"
                     :class="draggingSkill === skill.id ? 'opacity-50 scale-95' : ''"
                   >
@@ -289,20 +278,14 @@
                       </div>
                     </div>
                     <div class="flex items-center gap-2">
-                      <span class="text-xs text-gray-400 opacity-0 group-hover:opacity-100 transition-opacity">
-                        ← Drag
-                      </span>
+                      <span class="text-xs text-gray-400 opacity-0 group-hover:opacity-100 transition-opacity">← Drag</span>
                       <button
                         @click.stop="addSkill(skill.id)"
                         class="w-6 h-6 flex items-center justify-center rounded-full bg-blue-100 text-blue-600 hover:bg-blue-200 opacity-0 group-hover:opacity-100 transition-opacity"
                         title="Ajouter"
-                      >
-                        +
-                      </button>
+                      >+</button>
                     </div>
                   </div>
-                  
-                  <!-- Empty state -->
                   <div v-if="availableSkills.length === 0" class="flex flex-col items-center justify-center py-12 text-gray-400">
                     <span class="text-4xl mb-2">✅</span>
                     <span class="text-sm">Tous les skills sont assignés</span>
@@ -310,14 +293,128 @@
                 </div>
               </div>
             </div>
-            
-            <!-- Legend -->
             <div class="bg-gray-50 border rounded-lg p-4">
               <div class="flex items-start gap-3 text-sm text-gray-600">
                 <span class="text-xl">💡</span>
                 <div>
                   <strong class="text-gray-900">Glissez-déposez</strong> les skills entre les deux colonnes pour les assigner ou les retirer.
                   Vous pouvez aussi utiliser les boutons <span class="inline-flex items-center justify-center w-4 h-4 rounded-full bg-blue-100 text-blue-600 text-xs">+</span> et <span class="inline-flex items-center justify-center w-4 h-4 rounded-full bg-red-100 text-red-600 text-xs">✕</span>.
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Tab: MCPs -->
+          <div v-if="activeTab === 'mcps'" class="space-y-6">
+            <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+              <!-- Assigned MCPs -->
+              <div class="bg-gradient-to-br from-purple-50 to-fuchsia-50 rounded-xl border-2 border-purple-200 p-4">
+                <div class="flex items-center justify-between mb-4">
+                  <h3 class="text-sm font-bold text-purple-900 flex items-center gap-2">
+                    <span class="text-xl">🔌</span>
+                    MCPs assignés
+                  </h3>
+                  <span class="px-2 py-1 text-xs font-bold bg-purple-600 text-white rounded-full">
+                    {{ agent.mcps?.length || 0 }}
+                  </span>
+                </div>
+                <div
+                  @drop="handleMcpDrop($event, 'assigned')"
+                  @dragover.prevent
+                  @dragenter.prevent="mcpDragOverZone = 'assigned'"
+                  @dragleave="mcpDragOverZone = null"
+                  class="min-h-[300px] space-y-2 transition-all rounded-lg p-3"
+                  :class="mcpDragOverZone === 'assigned' ? 'bg-purple-100 ring-2 ring-purple-400' : 'bg-white/50'"
+                >
+                  <div
+                    v-for="mcpId in agent.mcps"
+                    :key="'mcp-assigned-' + mcpId"
+                    draggable="true"
+                    @dragstart="handleMcpDragStart($event, mcpId, 'assigned')"
+                    @dragend="handleMcpDragEnd"
+                    class="flex items-center justify-between p-3 bg-white rounded-lg border-2 shadow-sm cursor-grab active:cursor-grabbing hover:shadow-md hover:scale-[1.02] transition-all group"
+                    :class="draggingMcp === mcpId ? 'opacity-50 scale-95' : ''"
+                  >
+                    <div class="flex items-center gap-3">
+                      <span class="text-2xl">🔌</span>
+                      <div>
+                        <div class="font-semibold text-gray-900">{{ getMcpName(mcpId) }}</div>
+                        <div class="text-xs text-gray-500">{{ getMcpDescription(mcpId) }}</div>
+                      </div>
+                    </div>
+                    <div class="flex items-center gap-2">
+                      <span class="text-xs text-gray-400 opacity-0 group-hover:opacity-100 transition-opacity">Drag →</span>
+                      <button
+                        @click.stop="removeMcp(mcpId)"
+                        class="w-6 h-6 flex items-center justify-center rounded-full bg-red-100 text-red-600 hover:bg-red-200 opacity-0 group-hover:opacity-100 transition-opacity"
+                        title="Retirer"
+                      >✕</button>
+                    </div>
+                  </div>
+                  <div v-if="!agent.mcps || agent.mcps.length === 0" class="flex flex-col items-center justify-center py-12 text-gray-400">
+                    <span class="text-4xl mb-2">📭</span>
+                    <span class="text-sm">Aucun MCP assigné</span>
+                    <span class="text-xs">← Glissez des MCPs ici</span>
+                  </div>
+                </div>
+              </div>
+              <!-- Available MCPs -->
+              <div class="bg-gradient-to-br from-gray-50 to-slate-50 rounded-xl border-2 border-gray-300 p-4">
+                <div class="flex items-center justify-between mb-4">
+                  <h3 class="text-sm font-bold text-gray-700 flex items-center gap-2">
+                    <span class="text-xl">📚</span>
+                    MCPs disponibles
+                  </h3>
+                  <span class="px-2 py-1 text-xs font-bold bg-gray-600 text-white rounded-full">
+                    {{ availableMcps.length }}
+                  </span>
+                </div>
+                <div
+                  @drop="handleMcpDrop($event, 'available')"
+                  @dragover.prevent
+                  @dragenter.prevent="mcpDragOverZone = 'available'"
+                  @dragleave="mcpDragOverZone = null"
+                  class="min-h-[300px] space-y-2 transition-all rounded-lg p-3 overflow-y-auto max-h-[500px]"
+                  :class="mcpDragOverZone === 'available' ? 'bg-gray-100 ring-2 ring-gray-400' : 'bg-white/50'"
+                >
+                  <div
+                    v-for="mcp in availableMcps"
+                    :key="'mcp-available-' + mcp.id"
+                    draggable="true"
+                    @dragstart="handleMcpDragStart($event, mcp.id, 'available')"
+                    @dragend="handleMcpDragEnd"
+                    class="flex items-center justify-between p-3 bg-white rounded-lg border-2 shadow-sm cursor-grab active:cursor-grabbing hover:shadow-md hover:scale-[1.02] transition-all group"
+                    :class="draggingMcp === mcp.id ? 'opacity-50 scale-95' : ''"
+                  >
+                    <div class="flex items-center gap-3">
+                      <span class="text-2xl">🔌</span>
+                      <div>
+                        <div class="font-semibold text-gray-900">{{ mcp.name || mcp.id }}</div>
+                        <div v-if="mcp.description" class="text-xs text-gray-500 line-clamp-1">{{ mcp.description }}</div>
+                      </div>
+                    </div>
+                    <div class="flex items-center gap-2">
+                      <span class="text-xs text-gray-400 opacity-0 group-hover:opacity-100 transition-opacity">← Drag</span>
+                      <button
+                        @click.stop="addMcp(mcp.id)"
+                        class="w-6 h-6 flex items-center justify-center rounded-full bg-purple-100 text-purple-600 hover:bg-purple-200 opacity-0 group-hover:opacity-100 transition-opacity"
+                        title="Ajouter"
+                      >+</button>
+                    </div>
+                  </div>
+                  <div v-if="availableMcps.length === 0" class="flex flex-col items-center justify-center py-12 text-gray-400">
+                    <span class="text-4xl mb-2">✅</span>
+                    <span class="text-sm">Tous les MCPs sont assignés</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+            <div class="bg-gray-50 border rounded-lg p-4">
+              <div class="flex items-start gap-3 text-sm text-gray-600">
+                <span class="text-xl">💡</span>
+                <div>
+                  <strong class="text-gray-900">Glissez-déposez</strong> les MCP servers entre les deux colonnes pour les assigner ou les retirer.
+                  Les changements sont synchronisés avec Obsidian à la volée.
                 </div>
               </div>
             </div>
@@ -407,6 +504,7 @@ const agentId = computed(() => route.params.id as string)
 const activeTab = ref('skills')
 const tabs = [
   { id: 'skills', label: 'Skills' },
+  { id: 'mcps', label: 'MCPs' },
   { id: 'projects', label: 'Projets' },
   { id: 'files', label: 'Fichiers' },
   { id: 'sessions', label: 'Sessions' },
@@ -453,6 +551,16 @@ const availableSkills = computed(() => {
   return allSkills.value.filter(skill => !agentSkillIds.includes(skill.id))
 })
 
+// Fetch all MCPs
+const { data: allMcpsData } = await useFetch('/api/mcps')
+const allMcps = computed(() => allMcpsData.value?.installed || [])
+
+// Available MCPs (not yet assigned to this agent)
+const availableMcps = computed(() => {
+  const agentMcpIds = agent.value?.mcps || []
+  return allMcps.value.filter(mcp => !agentMcpIds.includes(mcp.id))
+})
+
 // Live data now included in agent response
 const liveStats = computed(() => liveOverride.value || ({
   totalTokens: agent.value?.totalTokens || 0,
@@ -484,12 +592,20 @@ async function updateModel(newModel: string) {
   }
 }
 
-// Drag & Drop state
+// ── Shared helpers ──
+async function refreshKeepScroll() {
+  const scrollY = window.scrollY
+  await refresh()
+  await nextTick()
+  window.scrollTo({ top: scrollY, behavior: 'instant' })
+}
+
+// ── Skills Drag & Drop ──
 const draggingSkill = ref<string | null>(null)
 const dragOverZone = ref<'assigned' | 'available' | null>(null)
 const dragSource = ref<'assigned' | 'available' | null>(null)
 
-function handleDragStart(event: DragEvent, skillId: string, source: 'assigned' | 'available') {
+function handleSkillDragStart(event: DragEvent, skillId: string, source: 'assigned' | 'available') {
   draggingSkill.value = skillId
   dragSource.value = source
   if (event.dataTransfer) {
@@ -498,48 +614,24 @@ function handleDragStart(event: DragEvent, skillId: string, source: 'assigned' |
   }
 }
 
-function handleDragEnd() {
+function handleSkillDragEnd() {
   draggingSkill.value = null
   dragOverZone.value = null
   dragSource.value = null
 }
 
-async function handleDrop(event: DragEvent, targetZone: 'assigned' | 'available') {
+async function handleSkillDrop(event: DragEvent, targetZone: 'assigned' | 'available') {
   event.preventDefault()
   const skillId = event.dataTransfer?.getData('text/plain')
-  
   if (!skillId || !dragSource.value) return
-  
-  // Ignore drop if same zone
-  if (dragSource.value === targetZone) {
-    handleDragEnd()
-    return
-  }
-  
-  // Add or remove based on target
-  if (targetZone === 'assigned') {
-    await addSkill(skillId)
-  } else {
-    await removeSkill(skillId)
-  }
-  
-  handleDragEnd()
-}
-
-// Skills management
-async function refreshKeepScroll() {
-  const scrollY = window.scrollY
-  await refresh()
-  await nextTick()
-  window.scrollTo({ top: scrollY, behavior: 'instant' })
+  if (dragSource.value === targetZone) { handleSkillDragEnd(); return }
+  if (targetZone === 'assigned') { await addSkill(skillId) } else { await removeSkill(skillId) }
+  handleSkillDragEnd()
 }
 
 async function addSkill(skillId: string) {
   try {
-    await $fetch(`/api/agents/${agentId.value}/skills`, {
-      method: 'POST',
-      body: { skillId }
-    })
+    await $fetch(`/api/agents/${agentId.value}/skills`, { method: 'POST', body: { skillId } })
     await refreshKeepScroll()
   } catch (err: any) {
     console.error('Failed to add skill:', err)
@@ -549,10 +641,7 @@ async function addSkill(skillId: string) {
 
 async function removeSkill(skillId: string) {
   try {
-    await $fetch(`/api/agents/${agentId.value}/skills`, {
-      method: 'DELETE',
-      body: { skillId }
-    })
+    await $fetch(`/api/agents/${agentId.value}/skills`, { method: 'DELETE', body: { skillId } })
     await refreshKeepScroll()
   } catch (err: any) {
     console.error('Failed to remove skill:', err)
@@ -560,7 +649,6 @@ async function removeSkill(skillId: string) {
   }
 }
 
-// Get skill info from allSkills
 function getSkillName(skillId: string): string {
   const skill = allSkills.value.find(s => s.id === skillId)
   return skill?.name || skillId
@@ -569,6 +657,65 @@ function getSkillName(skillId: string): string {
 function getSkillDescription(skillId: string): string {
   const skill = allSkills.value.find(s => s.id === skillId)
   return skill?.description ? skill.description.substring(0, 60) + (skill.description.length > 60 ? '...' : '') : ''
+}
+
+// ── MCPs Drag & Drop ──
+const draggingMcp = ref<string | null>(null)
+const mcpDragOverZone = ref<'assigned' | 'available' | null>(null)
+const mcpDragSource = ref<'assigned' | 'available' | null>(null)
+
+function handleMcpDragStart(event: DragEvent, mcpId: string, source: 'assigned' | 'available') {
+  draggingMcp.value = mcpId
+  mcpDragSource.value = source
+  if (event.dataTransfer) {
+    event.dataTransfer.effectAllowed = 'move'
+    event.dataTransfer.setData('text/plain', mcpId)
+  }
+}
+
+function handleMcpDragEnd() {
+  draggingMcp.value = null
+  mcpDragOverZone.value = null
+  mcpDragSource.value = null
+}
+
+async function handleMcpDrop(event: DragEvent, targetZone: 'assigned' | 'available') {
+  event.preventDefault()
+  const mcpId = event.dataTransfer?.getData('text/plain')
+  if (!mcpId || !mcpDragSource.value) return
+  if (mcpDragSource.value === targetZone) { handleMcpDragEnd(); return }
+  if (targetZone === 'assigned') { await addMcp(mcpId) } else { await removeMcp(mcpId) }
+  handleMcpDragEnd()
+}
+
+async function addMcp(mcpId: string) {
+  try {
+    await $fetch(`/api/agents/${agentId.value}/mcps`, { method: 'POST', body: { mcpId } })
+    await refreshKeepScroll()
+  } catch (err: any) {
+    console.error('Failed to add MCP:', err)
+    alert(`Erreur: ${err.message || 'Impossible d\'ajouter le MCP'}`)
+  }
+}
+
+async function removeMcp(mcpId: string) {
+  try {
+    await $fetch(`/api/agents/${agentId.value}/mcps`, { method: 'DELETE', body: { mcpId } })
+    await refreshKeepScroll()
+  } catch (err: any) {
+    console.error('Failed to remove MCP:', err)
+    alert(`Erreur: ${err.message || 'Impossible de retirer le MCP'}`)
+  }
+}
+
+function getMcpName(mcpId: string): string {
+  const mcp = allMcps.value.find(m => m.id === mcpId)
+  return mcp?.name || mcpId
+}
+
+function getMcpDescription(mcpId: string): string {
+  const mcp = allMcps.value.find(m => m.id === mcpId)
+  return mcp?.description ? mcp.description.substring(0, 60) + (mcp.description.length > 60 ? '...' : '') : ''
 }
 
 useHead({

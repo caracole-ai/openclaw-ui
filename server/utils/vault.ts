@@ -77,14 +77,46 @@ export function updateVaultFrontmatter(filePath: string, changes: Record<string,
 
 /**
  * List all .md files in a vault folder.
+ * Supports both flat files (Folder/file.md) and subfolder structures.
+ * In subfolders, only the canonical file is returned:
+ *   - Projets/foo/foo.md  (file name matches folder name)
+ *   - Agents/bar/SOUL.md  (convention for agents)
+ * Other files in subfolders (specs.md, idee-originelle.md, etc.) are ignored.
  */
 export function listVaultFiles(folder: keyof typeof vaultConfig.folders): string[] {
   const dir = join(vaultConfig.basePath, vaultConfig.folders[folder])
   if (!existsSync(dir)) return []
 
-  return readdirSync(dir)
-    .filter(f => extname(f) === '.md' && !f.startsWith('_'))
-    .map(f => join(dir, f))
+  const files: string[] = []
+  for (const entry of readdirSync(dir, { withFileTypes: true })) {
+    if (entry.name.startsWith('_')) continue
+    if (entry.isFile() && extname(entry.name) === '.md') {
+      // Flat file: Folder/file.md
+      files.push(join(dir, entry.name))
+    } else if (entry.isDirectory()) {
+      // Subfolder: only pick the canonical file (name matching folder, or SOUL.md)
+      const canonicalPath = join(dir, entry.name, `${entry.name}.md`)
+      const soulPath = join(dir, entry.name, 'SOUL.md')
+      if (existsSync(canonicalPath)) {
+        files.push(canonicalPath)
+      } else if (existsSync(soulPath)) {
+        files.push(soulPath)
+      }
+    }
+  }
+  return files
+}
+
+/**
+ * Load a vault template by name (e.g. 'idee', 'projet', 'agent', 'skill').
+ * Reads Templates/_template-{name}.md and returns parsed frontmatter + body.
+ */
+export function loadTemplate(name: string): VaultFile {
+  const templatePath = join(vaultConfig.basePath, vaultConfig.folders.templates, `_template-${name}.md`)
+  if (!existsSync(templatePath)) {
+    throw new Error(`Template not found: ${templatePath}`)
+  }
+  return parseVaultFile(templatePath)
 }
 
 /**
@@ -130,7 +162,7 @@ export function idFromFilename(filename: string): string {
 
 // ─── Sync: Vault → DB ───
 
-import { getDb } from './db'
+import { getDb, isMcpId } from './db'
 
 /**
  * Sync all ideas from vault to DB.
@@ -194,7 +226,12 @@ export function syncProjectsToDb(): void {
     'en-attente': 'backlog',
     'planification': 'planning',
     'execution': 'build',
+    'build': 'build',
+    'review': 'review',
+    'delivery': 'delivery',
+    'rex': 'rex',
     'termine': 'done',
+    'done': 'done',
     'archive': 'done',
   }
 
@@ -237,6 +274,17 @@ export function syncProjectsToDb(): void {
       console.error(`[vault] Failed to sync project: ${filePath}`, err)
     }
   }
+
+  // Clean up orphaned DB entries whose vault_path no longer matches a canonical file
+  const validPaths = new Set(files)
+  const allDbProjects = db.prepare('SELECT id, vault_path FROM projects').all() as { id: string; vault_path: string | null }[]
+  for (const row of allDbProjects) {
+    if (!row.vault_path || !validPaths.has(row.vault_path)) {
+      db.prepare('DELETE FROM project_agents WHERE project_id = ?').run(row.id)
+      db.prepare('DELETE FROM projects WHERE id = ?').run(row.id)
+      console.log(`[vault] Removed orphaned project from DB: ${row.id}`)
+    }
+  }
 }
 
 /**
@@ -246,7 +294,16 @@ export function syncProjectsToDb(): void {
  */
 export function syncAgentsToDb(): void {
   const db = getDb()
-  const files = listVaultFiles('agents')
+  const agentsDir = join(vaultConfig.basePath, vaultConfig.folders.agents)
+  // Collect both flat files (Agents/*.md) and subfolder SOUL.md files (Agents/*/SOUL.md)
+  const files = [...listVaultFiles('agents')]
+  if (existsSync(agentsDir)) {
+    for (const entry of readdirSync(agentsDir, { withFileTypes: true })) {
+      if (!entry.isDirectory()) continue
+      const soulPath = join(agentsDir, entry.name, 'SOUL.md')
+      if (existsSync(soulPath)) files.push(soulPath)
+    }
+  }
 
   const updateExisting = db.prepare(`
     UPDATE agents SET name = ?, emoji = ?, team = ?, role = ?, model = ?, workspace = ?, status = ?, vault_path = ?
@@ -261,6 +318,8 @@ export function syncAgentsToDb(): void {
   const exists = db.prepare('SELECT id FROM agents WHERE id = ?')
   const upsertSkill = db.prepare('INSERT OR REPLACE INTO agent_skills (agent_id, skill_id) VALUES (?, ?)')
   const insertSkillIfMissing = db.prepare('INSERT OR IGNORE INTO skills (id, name, status) VALUES (?, ?, ?)')
+  const upsertMcp = db.prepare('INSERT OR REPLACE INTO agent_mcps (agent_id, mcp_id) VALUES (?, ?)')
+  const insertMcpIfMissing = db.prepare('INSERT OR IGNORE INTO mcps (id, name, status) VALUES (?, ?, ?)')
 
   for (const filePath of files) {
     try {
@@ -297,18 +356,47 @@ export function syncAgentsToDb(): void {
         )
       }
 
-      // Sync skills from vault (wikilinks like "[[github]]" or "[[jcodemunch]]")
+      // Parse all wikilinks from skills field
+      const rawSkillIds: string[] = []
       if (fm.skills && Array.isArray(fm.skills)) {
-        // Clear existing assignments for this agent, then re-insert from vault
-        db.prepare('DELETE FROM agent_skills WHERE agent_id = ?').run(id)
         for (const raw of fm.skills) {
-          // Extract skill ID from wikilink: "[[foo]]" → "foo", "[[foo|bar]]" → "foo"
-          const skillId = String(raw).replace(/^\[\[/, '').replace(/\]\]$/, '').split('|')[0].trim()
-          if (!skillId) continue
-          // Ensure skill exists in skills table (auto-create if only in vault)
-          insertSkillIfMissing.run(skillId, skillId, 'active')
-          upsertSkill.run(id, skillId)
+          const parsed = String(raw).replace(/^\[\[/, '').replace(/\]\]$/, '').split('|')[0].trim()
+          if (parsed) rawSkillIds.push(parsed)
         }
+      }
+
+      // Parse explicit MCPs field
+      const rawMcpIds: string[] = []
+      if (fm.mcps && Array.isArray(fm.mcps)) {
+        for (const raw of fm.mcps) {
+          const parsed = String(raw).replace(/^\[\[/, '').replace(/\]\]$/, '').split('|')[0].trim()
+          if (parsed) rawMcpIds.push(parsed)
+        }
+      }
+
+      // Auto-split: if vault has MCPs mixed into skills, separate them
+      const actualSkills: string[] = []
+      const actualMcps: string[] = [...rawMcpIds]
+      for (const sid of rawSkillIds) {
+        if (isMcpId(sid)) {
+          if (!actualMcps.includes(sid)) actualMcps.push(sid)
+        } else {
+          actualSkills.push(sid)
+        }
+      }
+
+      // Sync skills → DB
+      db.prepare('DELETE FROM agent_skills WHERE agent_id = ?').run(id)
+      for (const skillId of actualSkills) {
+        insertSkillIfMissing.run(skillId, skillId, 'active')
+        upsertSkill.run(id, skillId)
+      }
+
+      // Sync MCPs → DB
+      db.prepare('DELETE FROM agent_mcps WHERE agent_id = ?').run(id)
+      for (const mcpId of actualMcps) {
+        insertMcpIfMissing.run(mcpId, mcpId, 'active')
+        upsertMcp.run(id, mcpId)
       }
     } catch (err) {
       console.error(`[vault] Failed to sync agent: ${filePath}`, err)
@@ -340,11 +428,11 @@ import type { DbAgent, DbProject } from '../types/db'
 const reverseStateMap: Record<string, string> = {
   'backlog': 'cadrage',
   'planning': 'planification',
-  'build': 'execution',
-  'review': 'execution',
-  'delivery': 'execution',
-  'rex': 'execution',
-  'done': 'termine',
+  'build': 'build',
+  'review': 'review',
+  'delivery': 'delivery',
+  'rex': 'rex',
+  'done': 'done',
 }
 
 /**
@@ -355,8 +443,10 @@ const reverseStateMap: Record<string, string> = {
 export function syncAgentsToVault(): void {
   const db = getDb()
   const agents = db.prepare('SELECT * FROM agents').all() as DbAgent[]
+  const agentsDir = join(vaultConfig.basePath, vaultConfig.folders.agents)
 
-  // Build a map of frontmatter id → filePath (handles filename != id, e.g. cloclo.md with id: main)
+  // Build a map of frontmatter id → filePath
+  // Checks both flat files (Agents/amelia.md) and subfolder structure (Agents/amelia/SOUL.md)
   const idToFile = new Map<string, string>()
   for (const filePath of listVaultFiles('agents')) {
     try {
@@ -364,6 +454,20 @@ export function syncAgentsToVault(): void {
       const id = fm.id || idFromFilename(filePath)
       idToFile.set(id, filePath)
     } catch { /* skip */ }
+  }
+  // Also scan subdirectories for SOUL.md files (new folder-based structure)
+  if (existsSync(agentsDir)) {
+    for (const entry of readdirSync(agentsDir, { withFileTypes: true })) {
+      if (!entry.isDirectory()) continue
+      const soulPath = join(agentsDir, entry.name, 'SOUL.md')
+      if (existsSync(soulPath)) {
+        try {
+          const { frontmatter: fm } = parseVaultFile(soulPath)
+          const id = fm.id || entry.name
+          idToFile.set(id, soulPath)
+        } catch { /* skip */ }
+      }
+    }
   }
 
   for (const agent of agents) {
@@ -373,6 +477,10 @@ export function syncAgentsToVault(): void {
       if (!existsSync(filePath)) continue
       try {
         const file = parseVaultFile(filePath)
+        const skillIds = db.prepare('SELECT skill_id FROM agent_skills WHERE agent_id = ?')
+          .all(agent.id).map((r: any) => `[[${r.skill_id}]]`)
+        const mcpIds = db.prepare('SELECT mcp_id FROM agent_mcps WHERE agent_id = ?')
+          .all(agent.id).map((r: any) => `[[${r.mcp_id}]]`)
         const updated = {
           ...file.frontmatter,
           nom: agent.name,
@@ -383,6 +491,8 @@ export function syncAgentsToVault(): void {
           modele: agent.model || 'claude-opus-4-6',
           status: agent.status || 'active',
           workspace: agent.workspace || file.frontmatter.workspace || '',
+          skills: skillIds,
+          mcps: mcpIds,
         }
         // Only write if something actually changed
         if (JSON.stringify(updated) !== JSON.stringify(file.frontmatter)) {
@@ -392,38 +502,9 @@ export function syncAgentsToVault(): void {
         console.error(`[vault] Failed to update agent vault file: ${agent.id}`, err)
       }
     } else {
-      // No vault file yet — create one
-      const filename = `${agent.id}.md`
-      const filePath = getVaultFilePath('agents', filename)
-      const frontmatter: Record<string, any> = {
-        nom: agent.name,
-        id: agent.id,
-        emoji: agent.emoji || '',
-        team: agent.team || '',
-        role: agent.role || '',
-        modele: agent.model || 'claude-opus-4-6',
-        status: agent.status || 'active',
-        workspace: agent.workspace || '',
-        mattermost: {
-          username: agent.mm_username || '',
-          user_id: agent.mm_user_id || '',
-        },
-        expertise: [],
-        skills: db.prepare('SELECT skill_id FROM agent_skills WHERE agent_id = ?')
-          .all(agent.id).map((r: any) => `[[${r.skill_id}]]`),
-        projets_actifs: db.prepare('SELECT project_id FROM project_agents WHERE agent_id = ?')
-          .all(agent.id).map((r: any) => `[[Projets/${r.project_id}]]`),
-        created_at: agent.created_at || new Date().toISOString(),
-      }
-      const body = `# ${agent.name}\n\n## Personnalite\n\n## Directives\n\n## Notes\n`
-      try {
-        writeVaultFile(filePath, frontmatter, body)
-        // Update DB with vault_path
-        db.prepare('UPDATE agents SET vault_path = ? WHERE id = ?').run(filePath, agent.id)
-        console.log(`[vault] Created vault file for agent: ${agent.id}`)
-      } catch (err) {
-        console.error(`[vault] Failed to create agent vault file: ${agent.id}`, err)
-      }
+      // Skip creation — if file was deleted in Obsidian (source of truth), don't recreate.
+      // Agents now use folder structure (Agents/<name>/SOUL.md), created manually or by agent-crafter.
+      continue
     }
   }
 }
@@ -436,6 +517,7 @@ export function syncProjectsToVault(): void {
   const projects = db.prepare('SELECT * FROM projects').all() as DbProject[]
 
   // Build map of frontmatter id → filePath
+  // listVaultFiles now scans both flat files and subfolder structures
   const idToFile = new Map<string, string>()
   for (const filePath of listVaultFiles('projects')) {
     try {
@@ -479,7 +561,10 @@ export function syncProjectsToVault(): void {
         console.error(`[vault] Failed to update project vault file: ${projectId}`, err)
       }
     } else {
-      // Create new vault file for project
+      // Skip creation — if file was deleted in Obsidian (source of truth), don't recreate
+      // Only the promote endpoint or explicit user action should create project files
+      continue
+      // Legacy: Create new vault file for project
       const filename = `${projectId}.md`
       const filePath = getVaultFilePath('projects', filename)
       const obsidianStatut = reverseStateMap[project.state] || 'cadrage'
@@ -528,6 +613,72 @@ export function syncProjectsToVault(): void {
       }
     }
   }
+}
+
+// ─── Targeted sync: single agent's skills/mcps → vault ───
+
+/**
+ * Helper: find the vault file path for an agent.
+ * Checks DB vault_path, flat files, then subfolder SOUL.md files.
+ */
+function findAgentVaultPath(agentId: string): string | null {
+  const db = getDb()
+  const agent = db.prepare('SELECT vault_path FROM agents WHERE id = ?').get(agentId) as { vault_path: string | null } | undefined
+  if (agent?.vault_path && existsSync(agent.vault_path)) return agent.vault_path
+  // Fallback: search flat vault files
+  for (const filePath of listVaultFiles('agents')) {
+    try {
+      const { frontmatter: fm } = parseVaultFile(filePath)
+      if ((fm.id || idFromFilename(filePath)) === agentId) return filePath
+    } catch { /* skip */ }
+  }
+  // Fallback: search subfolder SOUL.md files
+  const agentsDir = join(vaultConfig.basePath, vaultConfig.folders.agents)
+  if (existsSync(agentsDir)) {
+    const entries = readdirSync(agentsDir)
+    for (const name of entries) {
+      const soulPath = join(agentsDir, name, 'SOUL.md')
+      if (existsSync(soulPath)) {
+        try {
+          const { frontmatter: fm } = parseVaultFile(soulPath)
+          if ((fm.id || name) === agentId) return soulPath
+        } catch { /* skip */ }
+      }
+    }
+  }
+  return null
+}
+
+/**
+ * Sync a single agent's skills list to its Obsidian vault file.
+ * Called after skill assign/unassign for immediate vault update.
+ */
+export function syncAgentSkillsToVault(agentId: string): void {
+  const filePath = findAgentVaultPath(agentId)
+  if (!filePath) return
+
+  const db = getDb()
+  const skillIds = db.prepare('SELECT skill_id FROM agent_skills WHERE agent_id = ?')
+    .all(agentId).map((r: any) => `[[${r.skill_id}]]`)
+
+  updateVaultFrontmatter(filePath, { skills: skillIds })
+  console.log(`[vault] Synced skills for agent ${agentId} → vault`)
+}
+
+/**
+ * Sync a single agent's MCPs list to its Obsidian vault file.
+ * Called after MCP assign/unassign for immediate vault update.
+ */
+export function syncAgentMcpsToVault(agentId: string): void {
+  const filePath = findAgentVaultPath(agentId)
+  if (!filePath) return
+
+  const db = getDb()
+  const mcpIds = db.prepare('SELECT mcp_id FROM agent_mcps WHERE agent_id = ?')
+    .all(agentId).map((r: any) => `[[${r.mcp_id}]]`)
+
+  updateVaultFrontmatter(filePath, { mcps: mcpIds })
+  console.log(`[vault] Synced mcps for agent ${agentId} → vault`)
 }
 
 /**

@@ -13,6 +13,7 @@ import {
   getVaultFilePath,
   toVaultSlug,
   updateKanbanBoard,
+  loadTemplate,
   vaultConfig,
 } from '~/server/utils/vault'
 import { basename } from 'path'
@@ -33,30 +34,49 @@ export default defineEventHandler(async (event) => {
     throw createError({ statusCode: 400, statusMessage: `Cannot promote idea with statut '${idea.statut}'. Must be 'approuvee'.` })
   }
 
-  // 2. Generate project slug and paths
+  // 2. Resolve idea vault path (may be null in DB — reconstruct from disk)
+  let ideaVaultPath = idea.vault_path || ''
+  if (!ideaVaultPath) {
+    const ideasDir = getVaultFilePath('ideas', '')
+    try {
+      const { readdirSync } = await import('fs')
+      const files = readdirSync(ideasDir)
+      const match = files.find((f: string) => f.includes(id) || f.includes(toVaultSlug(idea.titre)))
+      if (match) {
+        ideaVaultPath = `${ideasDir}${match}`
+        // Persist for next time
+        db.prepare('UPDATE ideas SET vault_path = ? WHERE id = ?').run(ideaVaultPath, id)
+      }
+    } catch {}
+  }
+
+  // 3. Generate project slug and paths
   const projectName = body.name || idea.titre
   const projectType = body.type || 'code'
   const slug = toVaultSlug(projectName)
-  const projectFilename = `${slug}.md`
-  const projectPath = getVaultFilePath('projects', projectFilename)
-  const ideaFilename = idea.vault_path ? basename(idea.vault_path) : ''
+  const ideaFilename = ideaVaultPath ? basename(ideaVaultPath) : ''
 
-  // 3. Create project vault file
+  // Create project subfolder: Projets/<slug>/<slug>.md
+  const { mkdirSync } = await import('fs')
+  const projectDir = getVaultFilePath('projects', slug)
+  mkdirSync(projectDir, { recursive: true })
+  const projectPath = `${projectDir}/${slug}.md`
+
+  // 3. Create project vault file — frontmatter from template, body minimal
   const now = new Date().toISOString()
+  const template = loadTemplate('projet')
+
   const projectFrontmatter: Record<string, any> = {
+    ...template.frontmatter,
     titre: projectName,
     id: slug,
     type: projectType,
     statut: 'planification',
     progression: 0,
-    lead: '',
-    equipe: [],
-    github: { repo: '', url: '', created: false },
-    workspace: '',
-    channel: '',
-    phase_courante: '',
-    idee_source: ideaFilename ? `[[Idees/${ideaFilename.replace('.md', '')}]]` : '',
+    phase_courante: 'planification',
+    idee_source: ideaFilename ? `[[Idées/${ideaFilename.replace('.md', '')}]]` : '',
     tags: idea.themes ? JSON.parse(idea.themes) : [],
+    chemin: `~/Desktop/coding-projects/AUTO-BUILD/${slug}`,
     created_at: now,
     updated_at: now,
   }
@@ -69,16 +89,7 @@ export default defineEventHandler(async (event) => {
     }))
   }
 
-  const projectBody = `# ${projectName}
-
-## Objectifs
-
-## Approche
-
-## Implementation
-
-## Risques & Dependances
-`
+  const projectBody = `# ${projectName}\n\n> \n\n*Projet issu de l'idée : [[${ideaFilename ? ideaFilename.replace('.md', '') : ''}]]*\n`
 
   writeVaultFile(projectPath, projectFrontmatter, projectBody)
 
@@ -103,9 +114,9 @@ export default defineEventHandler(async (event) => {
   db.prepare("UPDATE ideas SET statut = 'promue', projet_lie = ?, updated_at = datetime('now') WHERE id = ?")
     .run(projetLie, id)
 
-  if (idea.vault_path) {
+  if (ideaVaultPath) {
     try {
-      updateVaultFrontmatter(idea.vault_path, {
+      updateVaultFrontmatter(ideaVaultPath, {
         statut: 'promue',
         projet_lie: projetLie,
       })
@@ -131,12 +142,14 @@ export default defineEventHandler(async (event) => {
   }
 
   // 8. Launch pipeline (fire-and-forget)
+  console.log(`[promote] About to launch pipeline for ${slug}, ideaVaultPath=${ideaVaultPath}`)
   try {
-    launchPipeline({
+    const pipelineResult = launchPipeline({
       projectId: slug,
       projectName,
-      ideaVaultPath: idea.vault_path || '',
+      ideaVaultPath,
     })
+    console.log(`[promote] Pipeline result:`, JSON.stringify(pipelineResult))
   } catch (err) {
     console.error(`[promote] Pipeline launch failed:`, err)
   }

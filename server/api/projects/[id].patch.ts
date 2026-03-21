@@ -3,9 +3,14 @@
  * Source: SQLite
  * Hooks: state transition to review/rex triggers ceremony channel creation
  */
+import { join } from 'path'
+import { existsSync } from 'fs'
 import { getDb } from '~/server/utils/db'
 import { launchPipeline } from '~/server/utils/pipeline'
+import { launchBuild } from '~/server/utils/build-launcher'
+import { launchReview } from '~/server/utils/review-launcher'
 import { serializeProject } from '~/server/utils/serializers'
+import { vaultConfig, updateVaultFrontmatter } from '~/server/utils/vault'
 import type { DbProject, DbProjectAgent, DbProjectPhase, DbProjectUpdate } from '~/server/types/db'
 
 const ALLOWED_FIELDS = ['name', 'description', 'type', 'status', 'state', 'progress', 'lead', 'channel', 'channel_id', 'workspace', 'github_repo', 'github_created', 'current_phase', 'last_nudge_at']
@@ -40,6 +45,48 @@ export default defineEventHandler(async (event) => {
   if (sets.length > 1) {
     params.push(id)
     db.prepare(`UPDATE projects SET ${sets.join(', ')} WHERE id = ?`).run(...params)
+  }
+
+  // Log state transition in project history
+  if (body.state && body.state !== oldState) {
+    const stateLabels: Record<string, string> = {
+      backlog: 'Backlog', planning: 'Planning', build: 'Build',
+      review: 'Review', delivery: 'Delivery', rex: 'REX', done: 'Done'
+    }
+    db.prepare('INSERT INTO project_updates (project_id, agent_id, message, type, created_at) VALUES (?, ?, ?, ?, datetime(\'now\'))').run(
+      id, 'system',
+      `Transition ${stateLabels[oldState] || oldState} → ${stateLabels[body.state] || body.state}`,
+      'state-change'
+    )
+  }
+
+  // Sync state changes to Obsidian vault (prevents reconciliation from reverting)
+  if (body.state && body.state !== oldState) {
+    const stateToStatut: Record<string, string> = {
+      backlog: 'cadrage', planning: 'planification', build: 'build',
+      review: 'review', delivery: 'delivery', rex: 'rex', done: 'done'
+    }
+
+    // Resolve vault_path if missing
+    let vaultPath = existing.vault_path
+    if (!vaultPath) {
+      const candidatePath = join(vaultConfig.basePath, 'Projets', `${id}.md`)
+      if (existsSync(candidatePath)) {
+        vaultPath = candidatePath
+        db.prepare('UPDATE projects SET vault_path = ? WHERE id = ?').run(vaultPath, id)
+      }
+    }
+
+    if (vaultPath && existsSync(vaultPath)) {
+      try {
+        updateVaultFrontmatter(vaultPath, {
+          statut: stateToStatut[body.state] || body.state,
+          phase_courante: body.state,
+        })
+      } catch (err) {
+        console.error(`[patch] Vault state sync failed for ${id}:`, err)
+      }
+    }
   }
 
   // Handle team/agents update
@@ -92,6 +139,29 @@ export default defineEventHandler(async (event) => {
     })
   }
 
+  // --- Backlog hook: revert to backlog resets the linked idea to approuvee ---
+  if (newState && newState !== oldState && newState === 'backlog') {
+    const idea = db.prepare("SELECT id, vault_path FROM ideas WHERE projet_lie LIKE ?")
+      .get(`%${id}%`) as { id: string; vault_path: string | null } | undefined
+
+    if (idea) {
+      db.prepare("UPDATE ideas SET statut = 'approuvee', projet_lie = '', updated_at = datetime('now') WHERE id = ?")
+        .run(idea.id)
+
+      // Reset document_status so pipeline can re-run later
+      db.prepare("UPDATE projects SET document_status = 'pending' WHERE id = ?").run(id)
+
+      if (idea.vault_path) {
+        try {
+          const { updateVaultFrontmatter } = await import('~/server/utils/vault')
+          updateVaultFrontmatter(idea.vault_path, { statut: 'approuvee', projet_lie: '' })
+        } catch (err) {
+          console.error(`[patch] Vault idea reset failed for ${idea.id}:`, err)
+        }
+      }
+    }
+  }
+
   // --- Pipeline hook: planning state triggers idea-to-specs pipeline ---
   if (newState && newState !== oldState && newState === 'planning') {
     if (existing.document_status !== 'completed') {
@@ -108,6 +178,45 @@ export default defineEventHandler(async (event) => {
         } catch (err) {
           console.error(`[patch] Pipeline launch failed for ${id}:`, err)
         }
+      }
+    }
+  }
+
+  // --- Build hook: build state triggers Claude Code auto-build ---
+  if (newState && newState !== oldState && newState === 'build') {
+    const specsSlug = `${id}-specs`
+    const specsPath = join(vaultConfig.basePath, 'Projets', `${specsSlug}.md`)
+
+    if (existsSync(specsPath)) {
+      try {
+        launchBuild({
+          projectId: id,
+          projectName: existing.name,
+          specsPath,
+        })
+      } catch (err) {
+        console.error(`[patch] Build launch failed for ${id}:`, err)
+      }
+    } else {
+      console.warn(`[patch] No specs found for ${id} at ${specsPath} — skipping build`)
+    }
+  }
+
+  // --- Review hook: review state triggers Claude Code testing ---
+  if (newState && newState !== oldState && newState === 'review') {
+    const specsSlug = `${id}-specs`
+    const specsPath = join(vaultConfig.basePath, 'Projets', `${specsSlug}.md`)
+    const projectDir = join(process.env.HOME || '', 'Desktop/coding-projects/AUTO-BUILD', id)
+
+    if (existsSync(projectDir)) {
+      try {
+        launchReview({
+          projectId: id,
+          projectName: existing.name,
+          specsPath: existsSync(specsPath) ? specsPath : '',
+        })
+      } catch (err) {
+        console.error(`[patch] Review launch failed for ${id}:`, err)
       }
     }
   }

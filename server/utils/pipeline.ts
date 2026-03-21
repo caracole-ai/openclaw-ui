@@ -7,8 +7,8 @@
  */
 import { spawn } from 'child_process'
 import { join } from 'path'
+import { openSync } from 'fs'
 import { getDb } from './db'
-import { broadcastDataUpdate } from '../plugins/source-watcher'
 
 const HOME = process.env.HOME || '/Users/caracole'
 const ORCHESTRATOR_DIR = join(HOME, 'Desktop/coding-projects/mattermost-orchestrator')
@@ -27,6 +27,12 @@ interface LaunchOptions {
 }
 
 export function launchPipeline(opts: LaunchOptions): { pid: number; status: string } {
+  // Guard: no idea path
+  if (!opts.ideaVaultPath) {
+    console.error(`[pipeline] No idea vault path for ${opts.projectId} — skipping`)
+    return { pid: 0, status: 'no_idea_path' }
+  }
+
   // Guard: already running
   if (runningPipelines.has(opts.projectId)) {
     const info = runningPipelines.get(opts.projectId)!
@@ -38,11 +44,39 @@ export function launchPipeline(opts: LaunchOptions): { pid: number; status: stri
   const args = [PIPELINE_SCRIPT, opts.ideaVaultPath, '--agents', ...agents]
   if (opts.budget) args.push('--budget', String(opts.budget))
 
+  // Redirect stdout/stderr to a log file so the detached process can write logs
+  const logFile = join(ORCHESTRATOR_DIR, `pipeline-${opts.projectId}.log`)
+  const logFd = openSync(logFile, 'w')
+
+  console.log(`[pipeline] Spawning: ${PYTHON_PATH} ${args.join(' ')}`)
+  console.log(`[pipeline] Log file: ${logFile}`)
+
+  // Load the orchestrator's .env and merge with process.env
+  const dotenvPath = join(ORCHESTRATOR_DIR, '.env')
+  const envOverrides: Record<string, string> = {}
+  try {
+    const { readFileSync: readF } = require('fs')
+    const lines = readF(dotenvPath, 'utf-8').split('\n')
+    for (const line of lines) {
+      const trimmed = line.trim()
+      if (!trimmed || trimmed.startsWith('#')) continue
+      const eqIdx = trimmed.indexOf('=')
+      if (eqIdx > 0) {
+        envOverrides[trimmed.slice(0, eqIdx)] = trimmed.slice(eqIdx + 1)
+      }
+    }
+  } catch {}
+
   const child = spawn(PYTHON_PATH, args, {
     cwd: ORCHESTRATOR_DIR,
-    env: { ...process.env },
+    env: { ...process.env, ...envOverrides },
+    stdio: ['ignore', logFd, logFd],
     detached: true,
-    stdio: ['ignore', 'pipe', 'pipe'],
+  })
+
+  child.on('error', (err) => {
+    console.error(`[pipeline] Spawn error for ${opts.projectId}:`, err)
+    runningPipelines.delete(opts.projectId)
   })
 
   child.unref()
@@ -52,69 +86,32 @@ export function launchPipeline(opts: LaunchOptions): { pid: number; status: stri
   runningPipelines.set(opts.projectId, { pid, startedAt: now })
 
   // Log start event in DB
-  const db = getDb()
-  db.prepare('INSERT INTO events (id, type, actor, data, created_at) VALUES (?, ?, ?, ?, ?)').run(
-    `evt-pipeline-${Date.now()}`,
-    'pipeline.started',
-    'system',
-    JSON.stringify({ projectId: opts.projectId, projectName: opts.projectName, agents, pid }),
-    now
-  )
+  try {
+    const db = getDb()
+    db.prepare('INSERT INTO events (id, type, actor, data, created_at) VALUES (?, ?, ?, ?, ?)').run(
+      `evt-pipeline-${Date.now()}`,
+      'pipeline.started',
+      'system',
+      JSON.stringify({ projectId: opts.projectId, projectName: opts.projectName, agents, pid }),
+      now
+    )
 
-  db.prepare("UPDATE projects SET document_status = 'in_progress', updated_at = ? WHERE id = ?")
-    .run(now, opts.projectId)
-
-  db.prepare('INSERT INTO project_updates (project_id, agent_id, message, type, created_at) VALUES (?, ?, ?, ?, ?)')
-    .run(opts.projectId, 'pipeline', `Pipeline lancé — agents: ${agents.join(', ')}`, 'pipeline', now)
+    // Only update project if it exists in DB
+    const project = db.prepare('SELECT id FROM projects WHERE id = ?').get(opts.projectId)
+    if (project) {
+      db.prepare("UPDATE projects SET document_status = 'in_progress' WHERE id = ?").run(opts.projectId)
+      db.prepare('INSERT INTO project_updates (project_id, agent_id, message, type, created_at) VALUES (?, ?, ?, ?, ?)')
+        .run(opts.projectId, 'pipeline', `Pipeline lancé — agents: ${agents.join(', ')}`, 'pipeline', now)
+    }
+  } catch (err) {
+    console.error(`[pipeline] DB logging failed:`, err)
+  }
 
   console.log(`[pipeline] Launched for ${opts.projectId} (PID ${pid}, agents: ${agents.join(', ')})`)
 
-  // Broadcast start to connected UI clients
-  broadcastDataUpdate()
-
-  // Capture trailing output for diagnostics
-  let stdout = ''
-  let stderr = ''
-  child.stdout?.on('data', (d: Buffer) => { stdout = (stdout + d.toString()).slice(-2000) })
-  child.stderr?.on('data', (d: Buffer) => { stderr = (stderr + d.toString()).slice(-2000) })
-
-  // Cleanup on exit — DB writes only, no broadcast needed
-  // (the source-watcher detects new spec files and broadcasts automatically)
-  child.on('exit', (code) => {
-    runningPipelines.delete(opts.projectId)
-    const endTime = new Date().toISOString()
-    const success = code === 0
-
-    try {
-      const db = getDb()
-
-      db.prepare('INSERT INTO events (id, type, actor, data, created_at) VALUES (?, ?, ?, ?, ?)').run(
-        `evt-pipeline-${Date.now()}`,
-        success ? 'pipeline.completed' : 'pipeline.failed',
-        'system',
-        JSON.stringify({ projectId: opts.projectId, exitCode: code, output: stdout.slice(-500) }),
-        endTime
-      )
-
-      db.prepare('UPDATE projects SET document_status = ?, updated_at = ? WHERE id = ?')
-        .run(success ? 'completed' : 'pending', endTime, opts.projectId)
-
-      db.prepare('INSERT INTO project_updates (project_id, agent_id, message, type, created_at) VALUES (?, ?, ?, ?, ?)')
-        .run(
-          opts.projectId,
-          'pipeline',
-          success
-            ? `Pipeline terminé — specs générées par ${agents.join(', ')}.`
-            : `Pipeline échoué (code ${code}). ${stderr.slice(-200)}`,
-          success ? 'pipeline' : 'error',
-          endTime
-        )
-    } catch (err) {
-      console.error(`[pipeline] Cleanup error for ${opts.projectId}:`, err)
-    }
-
-    console.log(`[pipeline] ${success ? 'Completed' : 'Failed'} for ${opts.projectId} (code ${code})`)
-  })
+  // With stdio: 'ignore' + detached + unref, the child runs fully independently.
+  // The exit handler won't fire reliably, so we DON'T track completion here.
+  // The vault-watcher will detect the new specs file and update the UI automatically.
 
   return { pid, status: 'launched' }
 }

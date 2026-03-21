@@ -1,8 +1,9 @@
 /**
  * POST /api/agents/:id/skills
- * Assign a skill to an agent
+ * Assign a skill to an agent + sync to Obsidian vault
  */
 import { getDb } from '~/server/utils/db'
+import { syncAgentSkillsToVault } from '~/server/utils/vault'
 
 export default defineEventHandler(async (event) => {
   const agentId = getRouterParam(event, 'id')
@@ -33,6 +34,13 @@ export default defineEventHandler(async (event) => {
 
   // Assign skill (INSERT OR IGNORE to avoid duplicates)
   db.prepare('INSERT OR IGNORE INTO agent_skills (agent_id, skill_id) VALUES (?, ?)').run(agentId, skillId)
+
+  // Sync to Obsidian vault
+  try {
+    syncAgentSkillsToVault(agentId)
+  } catch (err) {
+    console.error(`[agents/skills] Vault sync failed for ${agentId}:`, err)
+  }
 
   return { success: true, agentId, skillId }
 })

@@ -51,10 +51,11 @@ export function serializeAgent(
   a: DbAgent,
   options: {
     skills?: string[]
+    mcps?: string[]
     live?: Record<string, any>
   } = {}
 ) {
-  const { skills = [], live = {} } = options
+  const { skills = [], mcps = [], live = {} } = options
   return {
     id: a.id,
     name: a.name,
@@ -65,6 +66,7 @@ export function serializeAgent(
     workspace: a.workspace,
     status: a.status,
     skills,
+    mcps,
     mattermost: { username: a.mm_username, userId: a.mm_user_id },
     permissions: a.permissions ? JSON.parse(a.permissions) : null,
     createdAt: a.created_at,

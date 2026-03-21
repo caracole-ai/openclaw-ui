@@ -146,6 +146,29 @@
           </div>
 
           <!-- ─────────────────────────────────────────────────────────────── -->
+          <!-- BUILD LOG (live) -->
+          <!-- ─────────────────────────────────────────────────────────────── -->
+          <div v-if="buildLog.exists || project.state === 'build' || project.state === 'review'" class="bg-gray-900 rounded-xl border border-gray-700 overflow-hidden">
+            <div class="flex items-center justify-between px-4 py-3 border-b border-gray-700">
+              <div class="flex items-center gap-2">
+                <span class="text-lg">📦</span>
+                <h3 class="text-sm font-bold text-gray-200">
+                  {{ buildLog.reviewing ? 'Review Log' : 'Build Log' }}
+                </h3>
+                <span v-if="buildLog.building || buildLog.reviewing" class="relative flex h-2 w-2">
+                  <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-green-400 opacity-75"></span>
+                  <span class="relative inline-flex rounded-full h-2 w-2 bg-green-500"></span>
+                </span>
+              </div>
+              <span class="text-xs text-gray-500 font-mono">{{ formatBytes(buildLog.size) }}</span>
+            </div>
+            <div
+              ref="buildLogContainer"
+              class="p-4 font-mono text-xs text-green-400 bg-gray-950 overflow-y-auto max-h-[400px] whitespace-pre-wrap"
+            >{{ buildLog.content || 'En attente du log...' }}</div>
+          </div>
+
+          <!-- ─────────────────────────────────────────────────────────────── -->
           <!-- DOCUMENTATION -->
           <!-- ─────────────────────────────────────────────────────────────── -->
           <div class="bg-white rounded-2xl shadow-sm border">
@@ -213,131 +236,103 @@
         <!-- ─────────────────────────────────────────────────────────────── -->
         <div class="lg:col-span-4 space-y-4">
 
-          <!-- Team card -->
-          <div v-if="project.team?.length || project.assignees?.length" class="bg-white rounded-2xl shadow-sm border p-5">
-            <h3 class="font-semibold text-gray-700 flex items-center gap-2 mb-3">
-              <span>👥</span> Équipe
-              <span class="text-xs font-normal text-gray-400">
-                {{ project.team?.length || project.assignees?.length }}
-              </span>
-            </h3>
-
-            <div class="space-y-2">
-              <!-- Team with roles -->
-              <template v-if="project.team?.length">
-                <div 
-                  v-for="member in project.team" 
-                  :key="member.agent"
-                  class="flex items-center gap-3 p-2 rounded-lg bg-gray-50"
-                >
-                  <div class="w-8 h-8 rounded-full bg-gradient-to-br from-blue-400 to-purple-500 flex items-center justify-center text-white text-xs font-bold">
-                    {{ member.agent.charAt(0).toUpperCase() }}
-                  </div>
-                  <NuxtLink :to="`/agent/${member.agent}`" class="flex-1 min-w-0 hover:opacity-75 transition-opacity">
-                    <div class="font-medium text-sm text-blue-700 truncate">{{ member.agent }}</div>
-                    <div class="text-xs text-gray-500 truncate">{{ member.role }}</div>
-                  </NuxtLink>
-                </div>
-              </template>
-              <!-- Fallback to assignees -->
-              <template v-else-if="project.assignees?.length">
-                <NuxtLink 
-                  v-for="agent in project.assignees" 
-                  :key="agent"
-                  :to="`/agent/${agent}`"
-                  class="flex items-center gap-3 p-2 rounded-lg bg-gray-50 hover:bg-gray-100 transition-colors"
-                >
-                  <div class="w-8 h-8 rounded-full bg-gradient-to-br from-gray-400 to-gray-500 flex items-center justify-center text-white text-xs font-bold">
-                    {{ agent.charAt(0).toUpperCase() }}
-                  </div>
-                  <div class="font-medium text-sm text-blue-700 truncate">{{ agent }}</div>
-                </NuxtLink>
-              </template>
-            </div>
-          </div>
-          
-          <!-- Progress card -->
-          <div class="bg-white rounded-2xl shadow-sm border p-5">
-            <div class="flex items-center justify-between mb-3">
+          <!-- Dialog avec Cloclo -->
+          <div class="bg-white rounded-2xl shadow-sm border overflow-hidden">
+            <div class="p-4 border-b flex items-center justify-between">
               <h3 class="font-semibold text-gray-700 flex items-center gap-2">
-                <span>📊</span> Progress
+                <span>💬</span> Dialog
+                <span class="text-xs font-normal text-gray-400">avec Cloclo 🔧</span>
               </h3>
-              <span 
-                class="text-2xl font-bold"
-                :class="{
-                  'text-gray-300': project.progress === 0,
-                  'text-blue-500': project.progress > 0 && project.progress < 50,
-                  'text-amber-500': project.progress >= 50 && project.progress < 100,
-                  'text-green-500': project.progress === 100
-                }"
+              <button
+                v-if="dialogMessages.length > 0"
+                @click="saveDialogToDoc"
+                class="text-xs px-2 py-1 rounded bg-blue-50 text-blue-600 hover:bg-blue-100 transition-colors"
+                title="Sauvegarder dans la documentation"
               >
-                {{ project.progress }}%
-              </span>
+                📥 Sauver
+              </button>
             </div>
-
-            <!-- Progress bar -->
-            <div class="h-3 bg-gray-100 rounded-full overflow-hidden mb-3">
-              <div 
-                class="h-full rounded-full transition-all duration-500"
-                :class="{
-                  'bg-gray-300': project.progress === 0,
-                  'bg-blue-500': project.progress > 0 && project.progress < 50,
-                  'bg-amber-500': project.progress >= 50 && project.progress < 100,
-                  'bg-green-500': project.progress === 100
-                }"
-                :style="{ width: `${project.progress}%` }"
-              ></div>
-            </div>
-
-            <input 
-              type="range" 
-              v-model.number="project.progress"
-              @change="updateProgress"
-              min="0" 
-              max="100"
-              class="w-full h-1.5 bg-gray-200 rounded-lg appearance-none cursor-pointer accent-blue-500"
-            >
-          </div>
-
-          <!-- Phases card -->
-          <div class="bg-white rounded-2xl shadow-sm border p-5">
-            <h3 class="font-semibold text-gray-700 flex items-center gap-2 mb-3">
-              <span>📋</span> Phases
-              <span class="text-xs font-normal text-gray-400">
-                {{ completedPhases }}/{{ project.phases?.length ?? 0 }}
-              </span>
-            </h3>
-
-            <div v-if="project.phases?.length > 0" class="space-y-2 max-h-40 overflow-y-auto pr-1">
-              <div 
-                v-for="(phase, index) in project.phases" 
-                :key="index"
-                class="flex items-center gap-2 p-2 rounded-lg text-sm"
-                :class="{
-                  'bg-green-50': phase.status === 'completed',
-                  'bg-blue-50': phase.status === 'in-progress',
-                  'bg-gray-50': phase.status === 'pending'
-                }"
+            <div ref="dialogContainer" class="p-3 space-y-3 max-h-[350px] overflow-y-auto bg-gray-50">
+              <div v-if="dialogMessages.length === 0" class="text-center py-6 text-gray-400 text-sm">
+                Discutez de ce projet avec Cloclo
+              </div>
+              <div
+                v-for="msg in dialogMessages"
+                :key="msg.id"
+                class="flex gap-2"
+                :class="msg.sender === 'lio' ? 'justify-end' : 'justify-start'"
               >
-                <span class="text-base">
-                  {{ phase.status === 'completed' ? '✅' : phase.status === 'in-progress' ? '🔄' : '⏳' }}
-                </span>
-                <span class="flex-1 truncate">{{ phase.name }}</span>
-                <button 
-                  v-if="phase.status !== 'completed'"
-                  @click="completePhase(phase.name)"
-                  class="text-xs px-1.5 py-0.5 bg-green-100 text-green-700 rounded hover:bg-green-200"
+                <div
+                  class="max-w-[85%] px-3 py-2 rounded-xl text-sm"
+                  :class="msg.sender === 'lio'
+                    ? 'bg-blue-500 text-white rounded-br-sm'
+                    : 'bg-white border text-gray-800 rounded-bl-sm shadow-sm'"
                 >
-                  ✓
+                  <div v-if="msg.sender !== 'lio'" class="text-[10px] font-medium text-gray-400 mb-1">{{ msg.senderName }}</div>
+                  <div class="whitespace-pre-wrap break-words">{{ msg.content }}</div>
+                  <div class="text-[10px] mt-1" :class="msg.sender === 'lio' ? 'text-blue-200' : 'text-gray-300'">
+                    {{ formatTime(msg.timestamp) }}
+                  </div>
+                </div>
+              </div>
+              <div v-if="dialogSending" class="flex justify-start">
+                <div class="bg-white border rounded-xl px-3 py-2 shadow-sm">
+                  <span class="text-gray-400 text-sm animate-pulse">Cloclo réfléchit...</span>
+                </div>
+              </div>
+            </div>
+            <div class="p-3 border-t bg-white">
+              <div class="flex gap-2">
+                <input
+                  v-model="dialogInput"
+                  @keyup.enter="sendDialog"
+                  type="text"
+                  placeholder="Écrire à Cloclo..."
+                  class="flex-1 text-sm border rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-300 focus:border-blue-300"
+                  :disabled="dialogSending"
+                />
+                <button
+                  @click="sendDialog"
+                  :disabled="!dialogInput.trim() || dialogSending"
+                  class="px-3 py-2 bg-blue-500 text-white rounded-lg text-sm font-medium hover:bg-blue-600 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                >
+                  ➤
                 </button>
               </div>
             </div>
-
-            <div v-else class="text-center py-4 text-gray-400 text-sm">
-              Aucune phase
-            </div>
           </div>
 
+          <!-- Team card (always visible) -->
+          <div class="bg-white rounded-2xl shadow-sm border p-5">
+            <h3 class="font-semibold text-gray-700 flex items-center gap-2 mb-3">
+              <span>👥</span> Agents impliqués
+              <span class="text-xs font-normal text-gray-400">
+                {{ projectAgents.length }}
+              </span>
+            </h3>
+
+            <div v-if="projectAgents.length" class="space-y-2">
+              <NuxtLink
+                v-for="agent in projectAgents"
+                :key="agent.id"
+                :to="`/agent/${agent.id}`"
+                class="flex items-center gap-3 p-2 rounded-lg bg-gray-50 hover:bg-blue-50 hover:border-blue-200 transition-colors group"
+              >
+                <div class="w-8 h-8 rounded-full bg-gradient-to-br from-blue-400 to-purple-500 flex items-center justify-center text-white text-sm font-bold">
+                  {{ agent.emoji || agent.name?.charAt(0).toUpperCase() || '?' }}
+                </div>
+                <div class="flex-1 min-w-0">
+                  <div class="font-medium text-sm text-blue-700 truncate group-hover:text-blue-800">{{ agent.name || agent.id }}</div>
+                  <div class="text-xs text-gray-500 truncate">{{ agent.role || 'agent' }}</div>
+                </div>
+                <span class="text-gray-300 group-hover:text-blue-500 group-hover:translate-x-0.5 transition-all">→</span>
+              </NuxtLink>
+            </div>
+            <div v-else class="text-center py-4 text-gray-400 text-sm">
+              Aucun agent assigné
+            </div>
+          </div>
+          
           <!-- History card -->
           <div class="bg-white rounded-2xl shadow-sm border p-5">
             <div class="flex items-center justify-between mb-3">
@@ -566,7 +561,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted } from 'vue'
+import { ref, computed, onMounted, onUnmounted, nextTick } from 'vue'
 import type { Project } from '~/types/project'
 
 interface DocFile {
@@ -598,6 +593,120 @@ const showDocModal = ref(false)
 const currentDoc = ref<DocFile | null>(null)
 const docContent = ref('')
 const docLoading = ref(false)
+
+// Build log polling
+const buildLog = ref({ content: '', size: 0, exists: false, building: false, reviewing: false })
+const buildLogContainer = ref<HTMLElement | null>(null)
+let buildLogTimer: ReturnType<typeof setInterval> | null = null
+
+async function fetchBuildLog() {
+  try {
+    const data: any = await $fetch(`/api/projects/${route.params.id}/build-log`)
+    buildLog.value = data
+    // Auto-scroll to bottom
+    await nextTick()
+    if (buildLogContainer.value) {
+      buildLogContainer.value.scrollTop = buildLogContainer.value.scrollHeight
+    }
+  } catch {}
+}
+
+if (!import.meta.server) {
+  // Initial fetch
+  fetchBuildLog()
+  // Poll every 3s
+  buildLogTimer = setInterval(fetchBuildLog, 3000)
+  onUnmounted(() => { if (buildLogTimer) clearInterval(buildLogTimer) })
+}
+
+// Dialog with Cloclo
+const dialogMessages = ref<any[]>([])
+const dialogInput = ref('')
+const dialogSending = ref(false)
+const dialogContainer = ref<HTMLElement | null>(null)
+let dialogTimer: ReturnType<typeof setInterval> | null = null
+
+async function fetchDialog() {
+  try {
+    const data: any = await $fetch(`/api/projects/${route.params.id}/dialog`)
+    dialogMessages.value = data.messages || []
+  } catch {}
+}
+
+async function sendDialog() {
+  const msg = dialogInput.value.trim()
+  if (!msg) return
+
+  dialogInput.value = ''
+  dialogSending.value = true
+
+  try {
+    await $fetch(`/api/projects/${route.params.id}/dialog`, {
+      method: 'POST',
+      body: { message: msg }
+    })
+    // Wait a bit for Cloclo to respond via OpenClaw, then refresh
+    setTimeout(fetchDialog, 2000)
+    setTimeout(fetchDialog, 5000)
+    setTimeout(fetchDialog, 10000)
+    setTimeout(fetchDialog, 20000)
+  } catch (err: any) {
+    console.error('Dialog send failed:', err)
+  } finally {
+    dialogSending.value = false
+  }
+
+  // Immediate optimistic add
+  dialogMessages.value.push({
+    id: `temp-${Date.now()}`,
+    content: msg,
+    timestamp: Date.now(),
+    sender: 'lio',
+    senderName: '👤 Lio',
+  })
+}
+
+async function saveDialogToDoc() {
+  if (!dialogMessages.value.length) return
+  const content = dialogMessages.value.map(m =>
+    `### ${m.senderName} (${new Date(m.timestamp).toLocaleString('fr-FR')})\n\n${m.content}`
+  ).join('\n\n---\n\n')
+
+  try {
+    await $fetch(`/api/projects/${route.params.id}`, {
+      method: 'PATCH',
+      body: {
+        message: `💬 Conversation sauvegardée (${dialogMessages.value.length} messages)`,
+        updates: [{
+          agentId: 'dialog',
+          message: `## Conversation projet\n\n${content}`,
+          type: 'dialog',
+          timestamp: new Date().toISOString(),
+        }]
+      }
+    })
+    alert('Conversation sauvegardée dans l\'historique du projet')
+  } catch (err: any) {
+    console.error('Save dialog failed:', err)
+  }
+}
+
+function formatTime(ts: number): string {
+  return new Date(ts).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' })
+}
+
+if (!import.meta.server) {
+  fetchDialog()
+  dialogTimer = setInterval(fetchDialog, 10000)
+  onUnmounted(() => { if (dialogTimer) clearInterval(dialogTimer) })
+}
+
+function formatBytes(bytes: number): string {
+  if (!bytes) return '0 B'
+  if (bytes < 1024) return `${bytes} B`
+  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`
+  return `${(bytes / (1024 * 1024)).toFixed(1)} MB`
+}
 
 const typeIcon = computed(() => {
   switch (project.value?.type) {
@@ -645,6 +754,47 @@ const statusLabel = computed(() => {
 
 const completedPhases = computed(() => {
   return project.value?.phases?.filter(p => p.status === 'completed').length ?? 0
+})
+
+// Agents impliqués — combine team, assignees, et agents des specs
+const { data: allAgentsData } = await useFetch('/api/agents')
+const projectAgents = computed(() => {
+  const p = project.value
+  if (!p) return []
+
+  const allAgents = (allAgentsData.value as any)?.agents || []
+  const seen = new Set<string>()
+  const result: any[] = []
+
+  const addAgent = (id: string, role?: string) => {
+    if (!id || seen.has(id)) return
+    seen.add(id)
+    const agent = allAgents.find((a: any) => a.id === id)
+    result.push({
+      id,
+      name: agent?.name || id,
+      emoji: agent?.emoji || '',
+      role: role || agent?.role || 'agent',
+    })
+  }
+
+  // From team assignments
+  for (const m of p.team || []) addAgent(m.agent, m.role)
+  // From assignees
+  for (const a of p.assignees || []) addAgent(a)
+  // From agents field (if populated)
+  for (const a of p.agents || []) addAgent(typeof a === 'string' ? a : a.id, typeof a === 'string' ? undefined : a.role)
+
+  // If still empty, check specs frontmatter for pipeline_agents
+  if (result.length === 0) {
+    // Default pipeline agents
+    for (const name of ['winston', 'amelia', 'manolo']) {
+      const agent = allAgents.find((a: any) => a.id === name)
+      if (agent) addAgent(name, agent.role)
+    }
+  }
+
+  return result
 })
 
 // Separate RETEX docs from regular docs

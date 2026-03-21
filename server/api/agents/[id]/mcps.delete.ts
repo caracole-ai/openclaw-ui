@@ -1,9 +1,9 @@
 /**
- * DELETE /api/agents/:id/skills
- * Remove a skill from an agent + sync to Obsidian vault
+ * DELETE /api/agents/:id/mcps
+ * Remove an MCP from an agent + sync to Obsidian vault
  */
 import { getDb } from '~/server/utils/db'
-import { syncAgentSkillsToVault } from '~/server/utils/vault'
+import { syncAgentMcpsToVault } from '~/server/utils/vault'
 
 export default defineEventHandler(async (event) => {
   const agentId = getRouterParam(event, 'id')
@@ -12,10 +12,10 @@ export default defineEventHandler(async (event) => {
   }
 
   const body = await readBody(event)
-  const { skillId } = body
+  const { mcpId } = body
 
-  if (!skillId) {
-    throw createError({ statusCode: 400, statusMessage: 'skillId requis' })
+  if (!mcpId) {
+    throw createError({ statusCode: 400, statusMessage: 'mcpId requis' })
   }
 
   const db = getDb()
@@ -26,15 +26,15 @@ export default defineEventHandler(async (event) => {
     throw createError({ statusCode: 404, statusMessage: `Agent '${agentId}' non trouvé` })
   }
 
-  // Remove skill assignment
-  db.prepare('DELETE FROM agent_skills WHERE agent_id = ? AND skill_id = ?').run(agentId, skillId)
+  // Remove MCP assignment
+  db.prepare('DELETE FROM agent_mcps WHERE agent_id = ? AND mcp_id = ?').run(agentId, mcpId)
 
   // Sync to Obsidian vault
   try {
-    syncAgentSkillsToVault(agentId)
+    syncAgentMcpsToVault(agentId)
   } catch (err) {
-    console.error(`[agents/skills] Vault sync failed for ${agentId}:`, err)
+    console.error(`[agents/mcps] Vault sync failed for ${agentId}:`, err)
   }
 
-  return { success: true, agentId, skillId }
+  return { success: true, agentId, mcpId }
 })

@@ -61,6 +61,25 @@ CREATE TABLE IF NOT EXISTS agent_skills (
   PRIMARY KEY (agent_id, skill_id)
 );
 
+CREATE TABLE IF NOT EXISTS mcps (
+  id TEXT PRIMARY KEY,
+  name TEXT NOT NULL,
+  description TEXT,
+  version TEXT,
+  source TEXT,
+  path TEXT,
+  config TEXT, -- JSON (server config for .mcp.json)
+  installed_at TEXT,
+  installed_by TEXT,
+  status TEXT DEFAULT 'active'
+);
+
+CREATE TABLE IF NOT EXISTS agent_mcps (
+  agent_id TEXT REFERENCES agents(id) ON DELETE CASCADE,
+  mcp_id TEXT REFERENCES mcps(id) ON DELETE CASCADE,
+  PRIMARY KEY (agent_id, mcp_id)
+);
+
 CREATE TABLE IF NOT EXISTS teams (
   id TEXT PRIMARY KEY,
   name TEXT NOT NULL,
@@ -196,6 +215,77 @@ function runMigrations(db: Database.Database) {
     seedFromJson(db)
     db.prepare('INSERT OR REPLACE INTO meta (key, value) VALUES (?, ?)').run('seeded', new Date().toISOString())
   }
+
+  // Migration: split MCPs out of skills table (idempotent)
+  migrateSkillsToMcps(db)
+}
+
+// ─── MCP IDs: items that are MCP servers, not internal skills ───
+const MCP_IDS = new Set([
+  'chrome-devtools-mcp',
+  'mattermost-mcp',
+  'stitch-mcp',
+  'hostinger',
+  'jcodemunch',
+  'browser-automation',
+  'peekaboo',
+  'context7',
+  'playwright',
+])
+
+export function isMcpId(id: string): boolean {
+  return MCP_IDS.has(id) || id.endsWith('-mcp')
+}
+
+/**
+ * One-time migration: move MCP entries from skills/agent_skills to mcps/agent_mcps.
+ * Idempotent — checks meta table to avoid running twice.
+ */
+function migrateSkillsToMcps(db: Database.Database) {
+  const migrated = db.prepare('SELECT value FROM meta WHERE key = ?').get('mcps_migrated') as any
+  if (migrated) return
+
+  console.log('[db] Running MCP migration: splitting MCPs from skills...')
+
+  const tx = db.transaction(() => {
+    // 1. Find all skills that are actually MCPs
+    const allSkills = db.prepare('SELECT * FROM skills').all() as any[]
+    const mcpSkills = allSkills.filter(s => isMcpId(s.id))
+
+    // 2. Move them to mcps table
+    const insertMcp = db.prepare(`
+      INSERT OR IGNORE INTO mcps (id, name, description, version, source, path, config, installed_at, installed_by, status)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    `)
+    for (const s of mcpSkills) {
+      insertMcp.run(s.id, s.name, s.description, s.version, s.source, s.path, s.manifest, s.installed_at, s.installed_by, s.status)
+    }
+
+    // 3. Move agent_skills → agent_mcps for MCP IDs
+    const allAssignments = db.prepare('SELECT agent_id, skill_id FROM agent_skills').all() as any[]
+    const insertAM = db.prepare('INSERT OR IGNORE INTO agent_mcps (agent_id, mcp_id) VALUES (?, ?)')
+    for (const a of allAssignments) {
+      if (isMcpId(a.skill_id)) {
+        insertAM.run(a.agent_id, a.skill_id)
+      }
+    }
+
+    // 4. Remove MCP entries from agent_skills
+    for (const s of mcpSkills) {
+      db.prepare('DELETE FROM agent_skills WHERE skill_id = ?').run(s.id)
+    }
+
+    // 5. Remove MCPs from skills table
+    for (const s of mcpSkills) {
+      db.prepare('DELETE FROM skills WHERE id = ?').run(s.id)
+    }
+
+    // 6. Mark as done
+    db.prepare('INSERT OR REPLACE INTO meta (key, value) VALUES (?, ?)').run('mcps_migrated', new Date().toISOString())
+
+    console.log(`[db] Migrated ${mcpSkills.length} MCPs: ${mcpSkills.map(s => s.id).join(', ')}`)
+  })
+  tx()
 }
 
 // ─── Seed from JSON sources ───
@@ -258,6 +348,30 @@ export function syncDataFromJson(db: Database.Database) {
       for (const [agentId, skills] of Object.entries(skillsData.assignments)) {
         for (const skillId of skills as string[]) {
           insertAS.run(agentId, skillId)
+        }
+      }
+    }
+  }
+
+  // --- MCPs ---
+  const mcpsData = readJson('mcps.json')
+  if (mcpsData?.installed) {
+    const insertMcp = db.prepare(`
+      INSERT OR REPLACE INTO mcps (id, name, description, version, source, path, config, installed_at, installed_by, status)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    `)
+    for (const m of mcpsData.installed) {
+      insertMcp.run(
+        m.id, m.name, m.description, m.version, m.source, m.path,
+        m.config ? JSON.stringify(m.config) : null,
+        m.installedAt, m.installedBy, m.status || 'active'
+      )
+    }
+    if (mcpsData.assignments) {
+      const insertAM = db.prepare('INSERT OR REPLACE INTO agent_mcps (agent_id, mcp_id) VALUES (?, ?)')
+      for (const [agentId, mcps] of Object.entries(mcpsData.assignments)) {
+        for (const mcpId of mcps as string[]) {
+          insertAM.run(agentId, mcpId)
         }
       }
     }

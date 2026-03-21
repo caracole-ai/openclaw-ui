@@ -47,7 +47,7 @@ async function getAdminToken(): Promise<string> {
   return adminToken
 }
 
-async function mmApi(method: string, path: string, body?: any, botToken?: string): Promise<any> {
+export async function mmApi(method: string, path: string, body?: any, botToken?: string): Promise<any> {
   const token = botToken || await getAdminToken()
   const res = await fetch(`${MM_URL}/api/v4${path}`, {
     method,

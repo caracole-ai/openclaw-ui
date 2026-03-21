@@ -31,12 +31,24 @@
             v-for="project in getProjectsForColumn(column.state)"
             :key="project.id"
             draggable="true"
-            class="bg-white rounded-lg p-3 shadow-sm border cursor-grab hover:shadow-md transition-all"
+            class="bg-white rounded-lg p-3 shadow-sm border cursor-grab hover:shadow-md transition-all relative group"
             :class="{ 'opacity-50 scale-95': draggingId === project.id }"
             @click="navigateTo(`/project/${project.id}`)"
             @dragstart="handleDragStart($event, project)"
             @dragend="handleDragEnd"
           >
+            <!-- Delete button (backlog only) -->
+            <button
+              v-if="column.state === 'backlog'"
+              class="absolute top-1.5 right-1.5 w-5 h-5 flex items-center justify-center rounded-full text-gray-400 hover:text-red-500 hover:bg-red-50 opacity-0 group-hover:opacity-100 transition-all z-10"
+              title="Supprimer"
+              @click.stop="confirmDeleteProject(project)"
+            >
+              <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M6 18L18 6M6 6l12 12" />
+              </svg>
+            </button>
+
             <!-- Title -->
             <div class="font-medium text-sm text-gray-900 mb-1">
               {{ project.name }}
@@ -80,6 +92,40 @@
         </div>
       </div>
     </div>
+
+    <!-- Delete confirmation modal -->
+    <Teleport to="body">
+      <div
+        v-if="projectToDelete"
+        class="fixed inset-0 z-50 flex items-center justify-center bg-black/40"
+        @click.self="projectToDelete = null"
+      >
+        <div class="bg-white rounded-xl shadow-xl p-6 max-w-sm w-full mx-4">
+          <h3 class="text-lg font-semibold text-gray-900 mb-2">Supprimer ce projet ?</h3>
+          <p class="text-sm text-gray-600 mb-1">
+            <span class="font-medium">{{ projectToDelete.name }}</span>
+          </p>
+          <p class="text-sm text-gray-500 mb-5">
+            Cette action est irréversible. Le projet et toutes ses données seront supprimés.
+          </p>
+          <div class="flex justify-end gap-3">
+            <button
+              class="px-4 py-2 text-sm font-medium text-gray-700 bg-gray-100 hover:bg-gray-200 rounded-lg transition-colors"
+              @click="projectToDelete = null"
+            >
+              Annuler
+            </button>
+            <button
+              class="px-4 py-2 text-sm font-medium text-white bg-red-600 hover:bg-red-700 rounded-lg transition-colors disabled:opacity-50"
+              :disabled="isDeleting"
+              @click="deleteProject"
+            >
+              {{ isDeleting ? 'Suppression…' : 'Supprimer' }}
+            </button>
+          </div>
+        </div>
+      </div>
+    </Teleport>
   </div>
 </template>
 
@@ -99,6 +145,29 @@ const { success, error } = useToast()
 // Drag state
 const draggingId = ref<string | null>(null)
 const dragOverColumn = ref<string | null>(null)
+
+// Delete state
+const projectToDelete = ref<Project | null>(null)
+const isDeleting = ref(false)
+
+function confirmDeleteProject(project: Project) {
+  projectToDelete.value = project
+}
+
+async function deleteProject() {
+  if (!projectToDelete.value || isDeleting.value) return
+  isDeleting.value = true
+  try {
+    await $fetch(`/api/projects/${projectToDelete.value.id}`, { method: 'DELETE' })
+    success(`${projectToDelete.value.name} supprimé`)
+    projectToDelete.value = null
+    await fetchProjects()
+  } catch (err: any) {
+    error(`Erreur lors de la suppression: ${err.message || 'Erreur inconnue'}`)
+  } finally {
+    isDeleting.value = false
+  }
+}
 
 // No transition validation - user can move projects freely between any columns
 

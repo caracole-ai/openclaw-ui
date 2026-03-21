@@ -23,6 +23,7 @@ export interface Agent {
   role: AgentRole
   model: string
   skills: string[]
+  mcps: string[]
   mattermost: AgentMattermost
   workspace: string
   permissions?: AgentPermissions | null

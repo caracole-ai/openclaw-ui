@@ -34,8 +34,8 @@ export default defineNitroPlugin((nitroApp) => {
 
     const watchPaths = [
       join(basePath, folders.ideas, '*.md'),
-      join(basePath, folders.projects, '*.md'),
-      join(basePath, folders.agents, '*.md'),
+      join(basePath, folders.projects, '**/*.md'),
+      join(basePath, folders.agents, '**/*.md'),
     ]
 
     // ── File watcher: vault changes → DB ──

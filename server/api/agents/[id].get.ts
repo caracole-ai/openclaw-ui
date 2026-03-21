@@ -7,7 +7,7 @@ import { existsSync, readdirSync } from 'fs'
 import { join } from 'path'
 import { getDb, getLiveStats, getLiveSessions } from '~/server/utils/db'
 import { serializeAgent } from '~/server/utils/serializers'
-import type { DbAgent, DbAgentSkill } from '~/server/types/db'
+import type { DbAgent, DbAgentSkill, DbAgentMcp } from '~/server/types/db'
 
 const WORKSPACE_FILES = [
   'SOUL.md', 'IDENTITY.md', 'USER.md', 'AGENTS.md',
@@ -25,6 +25,10 @@ export default defineEventHandler(async (event) => {
   // Skills
   const skills = (db.prepare('SELECT skill_id FROM agent_skills WHERE agent_id = ?')
     .all(agentId) as DbAgentSkill[]).map(r => r.skill_id)
+
+  // MCPs
+  const mcps = (db.prepare('SELECT mcp_id FROM agent_mcps WHERE agent_id = ?')
+    .all(agentId) as DbAgentMcp[]).map(r => r.mcp_id)
 
   // Projects
   const projects = db.prepare(`
@@ -60,7 +64,7 @@ export default defineEventHandler(async (event) => {
   const sessions = getLiveSessions(agentId)
 
   return {
-    ...serializeAgent(agent, { skills, live }),
+    ...serializeAgent(agent, { skills, mcps, live }),
     projects,
     files,
     sessions,
