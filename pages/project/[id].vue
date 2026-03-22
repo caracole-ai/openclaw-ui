@@ -788,7 +788,7 @@ const projectAgents = computed(() => {
   // If still empty, check specs frontmatter for pipeline_agents
   if (result.length === 0) {
     // Default pipeline agents
-    for (const name of ['winston', 'amelia', 'manolo']) {
+    for (const name of ['winston', 'amelia', 'walid']) {
       const agent = allAgents.find((a: any) => a.id === name)
       if (agent) addAgent(name, agent.role)
     }

@@ -89,7 +89,12 @@ export default defineEventHandler(async (event) => {
     }))
   }
 
-  const projectBody = `# ${projectName}\n\n> \n\n*Projet issu de l'idée : [[${ideaFilename ? ideaFilename.replace('.md', '') : ''}]]*\n`
+  // Use template body with placeholder substitution
+  let projectBody = template.body
+    .replace(/\{\{titre\}\}/g, projectName)
+    .replace(/\{\{id\}\}/g, slug)
+    .replace(/\{\{date\}\}/g, now.split('T')[0])
+    .replace(/\{\{idee_source\}\}/g, ideaFilename ? ideaFilename.replace('.md', '') : '')
 
   writeVaultFile(projectPath, projectFrontmatter, projectBody)
 
@@ -145,6 +150,7 @@ export default defineEventHandler(async (event) => {
   console.log(`[promote] About to launch pipeline for ${slug}, ideaVaultPath=${ideaVaultPath}`)
   try {
     const pipelineResult = launchPipeline({
+      type: 'incubation',
       projectId: slug,
       projectName,
       ideaVaultPath,

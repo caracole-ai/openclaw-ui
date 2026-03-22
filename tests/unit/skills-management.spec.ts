@@ -48,7 +48,7 @@ describe('Agent navigation (prev/next)', () => {
     { id: 'winston', name: 'Winston' },
     { id: 'amelia', name: 'Amelia' },
     { id: 'claudio', name: 'Claudio' },
-    { id: 'manolo', name: 'Manolo' },
+    { id: 'walid', name: 'Walid' },
   ]
 
   it('computes prev/next for middle agent', () => {

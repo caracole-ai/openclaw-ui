@@ -2,11 +2,19 @@
   <div>
     <Breadcrumb />
 
-    <div class="vault-layout">
+    <div class="vault-layout" :style="layoutStyle">
       <!-- Left: File Tree -->
       <aside class="border-r bg-white overflow-y-auto">
         <VaultFileTree />
       </aside>
+
+      <!-- Left resize handle -->
+      <div
+        class="resize-handle"
+        @mousedown="startResize('left', $event)"
+      >
+        <div class="resize-handle-line" />
+      </div>
 
       <!-- Center: Content -->
       <main class="overflow-y-auto bg-gray-50">
@@ -121,6 +129,14 @@
         </div>
       </main>
 
+      <!-- Right resize handle -->
+      <div
+        class="resize-handle"
+        @mousedown="startResize('right', $event)"
+      >
+        <div class="resize-handle-line" />
+      </div>
+
       <!-- Right: Metadata & Backlinks OR MetaFlow Pipeline Sidebar -->
       <aside class="border-l bg-white overflow-y-auto">
         <!-- MetaFlow Supreme pipeline sidebar -->
@@ -179,6 +195,71 @@
 </template>
 
 <script setup lang="ts">
+// ─── Resizable sidebars ───
+
+const STORAGE_KEY = 'vault-sidebar-widths'
+const MIN_WIDTH = 180
+const MAX_WIDTH = 500
+
+const leftWidth = ref(280)
+const rightWidth = ref(300)
+
+// Restore from localStorage
+onMounted(() => {
+  try {
+    const saved = localStorage.getItem(STORAGE_KEY)
+    if (saved) {
+      const { left, right } = JSON.parse(saved)
+      if (left >= MIN_WIDTH && left <= MAX_WIDTH) leftWidth.value = left
+      if (right >= MIN_WIDTH && right <= MAX_WIDTH) rightWidth.value = right
+    }
+  } catch { /* ignore */ }
+})
+
+function saveWidths() {
+  localStorage.setItem(STORAGE_KEY, JSON.stringify({ left: leftWidth.value, right: rightWidth.value }))
+}
+
+const layoutStyle = computed(() => ({
+  gridTemplateColumns: `${leftWidth.value}px 4px 1fr 4px ${rightWidth.value}px`,
+}))
+
+let resizeSide: 'left' | 'right' | null = null
+let startX = 0
+let startWidth = 0
+
+function startResize(side: 'left' | 'right', e: MouseEvent) {
+  resizeSide = side
+  startX = e.clientX
+  startWidth = side === 'left' ? leftWidth.value : rightWidth.value
+  document.body.style.cursor = 'col-resize'
+  document.body.style.userSelect = 'none'
+  document.addEventListener('mousemove', onResize)
+  document.addEventListener('mouseup', stopResize)
+}
+
+function onResize(e: MouseEvent) {
+  if (!resizeSide) return
+  const delta = e.clientX - startX
+  let newWidth: number
+  if (resizeSide === 'left') {
+    newWidth = Math.min(MAX_WIDTH, Math.max(MIN_WIDTH, startWidth + delta))
+    leftWidth.value = newWidth
+  } else {
+    newWidth = Math.min(MAX_WIDTH, Math.max(MIN_WIDTH, startWidth - delta))
+    rightWidth.value = newWidth
+  }
+}
+
+function stopResize() {
+  resizeSide = null
+  document.body.style.cursor = ''
+  document.body.style.userSelect = ''
+  document.removeEventListener('mousemove', onResize)
+  document.removeEventListener('mouseup', stopResize)
+  saveWidths()
+}
+
 const {
   currentFile,
   currentPath,
@@ -316,14 +397,45 @@ const vaultStats = computed(() => {
 <style scoped>
 .vault-layout {
   display: grid;
-  grid-template-columns: 280px 1fr 300px;
   height: calc(100vh - 64px);
+}
+
+.resize-handle {
+  width: 4px;
+  cursor: col-resize;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: transparent;
+  transition: background-color 0.15s;
+  position: relative;
+  z-index: 10;
+}
+
+.resize-handle:hover,
+.resize-handle:active {
+  background-color: rgb(99 102 241 / 0.2);
+}
+
+.resize-handle-line {
+  width: 2px;
+  height: 32px;
+  border-radius: 1px;
+  background-color: rgb(209 213 219);
+  transition: background-color 0.15s, height 0.15s;
+}
+
+.resize-handle:hover .resize-handle-line,
+.resize-handle:active .resize-handle-line {
+  background-color: rgb(99 102 241);
+  height: 48px;
 }
 
 @media (max-width: 1024px) {
   .vault-layout {
-    grid-template-columns: 240px 1fr;
+    grid-template-columns: 240px 1fr !important;
   }
+  .vault-layout > .resize-handle,
   .vault-layout > aside:last-child {
     display: none;
   }
@@ -331,9 +443,10 @@ const vaultStats = computed(() => {
 
 @media (max-width: 768px) {
   .vault-layout {
-    grid-template-columns: 1fr;
+    grid-template-columns: 1fr !important;
   }
-  .vault-layout > aside:first-child {
+  .vault-layout > aside:first-child,
+  .vault-layout > .resize-handle {
     display: none;
   }
 }

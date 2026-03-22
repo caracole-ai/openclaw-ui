@@ -37,7 +37,7 @@ describe('Skills API - SQLite layer', () => {
 
     // Seed test data
     db.prepare('INSERT INTO agents (id, name) VALUES (?, ?)').run('winston', 'Winston')
-    db.prepare('INSERT INTO agents (id, name) VALUES (?, ?)').run('manolo', 'Manolo')
+    db.prepare('INSERT INTO agents (id, name) VALUES (?, ?)').run('walid', 'Walid')
     db.prepare('INSERT INTO skills (id, name, description) VALUES (?, ?, ?)').run('github', 'GitHub CLI', 'Interact with GitHub')
     db.prepare('INSERT INTO skills (id, name, description) VALUES (?, ?, ?)').run('coding-agent', 'Coding Agent', 'Run coding agents')
     db.prepare('INSERT INTO skills (id, name, description) VALUES (?, ?, ?)').run('weather', 'Weather', 'Get weather info')
@@ -66,7 +66,7 @@ describe('Skills API - SQLite layer', () => {
       }
 
       expect(map.winston).toEqual(['github', 'coding-agent'])
-      expect(map.manolo).toBeUndefined()
+      expect(map.walid).toBeUndefined()
     })
   })
 
@@ -125,7 +125,7 @@ describe('Skills API - SQLite layer', () => {
     it('returns skill IDs for a specific agent', () => {
       db.prepare('INSERT INTO agent_skills (agent_id, skill_id) VALUES (?, ?)').run('winston', 'github')
       db.prepare('INSERT INTO agent_skills (agent_id, skill_id) VALUES (?, ?)').run('winston', 'coding-agent')
-      db.prepare('INSERT INTO agent_skills (agent_id, skill_id) VALUES (?, ?)').run('manolo', 'weather')
+      db.prepare('INSERT INTO agent_skills (agent_id, skill_id) VALUES (?, ?)').run('walid', 'weather')
 
       const winstonSkills = (db.prepare('SELECT skill_id FROM agent_skills WHERE agent_id = ?').all('winston') as any[]).map(r => r.skill_id)
       expect(winstonSkills.sort()).toEqual(['coding-agent', 'github'])

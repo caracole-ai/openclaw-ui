@@ -171,6 +171,7 @@ export default defineEventHandler(async (event) => {
       if (idea?.vault_path) {
         try {
           launchPipeline({
+            type: 'specs',
             projectId: id,
             projectName: existing.name,
             ideaVaultPath: idea.vault_path,

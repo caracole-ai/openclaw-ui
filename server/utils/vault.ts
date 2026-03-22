@@ -561,56 +561,9 @@ export function syncProjectsToVault(): void {
         console.error(`[vault] Failed to update project vault file: ${projectId}`, err)
       }
     } else {
-      // Skip creation — if file was deleted in Obsidian (source of truth), don't recreate
-      // Only the promote endpoint or explicit user action should create project files
+      // Skip creation — if file was deleted in Obsidian (source of truth), don't recreate.
+      // Project vault files are created by the promote endpoint or incubation pipeline.
       continue
-      // Legacy: Create new vault file for project
-      const filename = `${projectId}.md`
-      const filePath = getVaultFilePath('projects', filename)
-      const obsidianStatut = reverseStateMap[project.state] || 'cadrage'
-      const frontmatter: Record<string, any> = {
-        titre: project.name,
-        id: projectId,
-        type: project.type || 'code',
-        statut: obsidianStatut,
-        progression: project.progress || 0,
-        phase_courante: project.current_phase || '',
-        lead: project.lead || '',
-        equipe: [],
-        github: {
-          repo: project.github_repo || '',
-          url: project.github_repo ? `https://github.com/${vaultConfig.githubOwner}/${project.github_repo}` : '',
-          created: !!project.github_created,
-        },
-        workspace: project.workspace || '',
-        channel: project.channel || '',
-        idee_source: '',
-        tags: [],
-        stack: [],
-        created_at: project.created_at || new Date().toISOString(),
-        updated_at: project.updated_at || new Date().toISOString(),
-      }
-
-      // Get team assignments
-      const team = db.prepare('SELECT agent_id, role FROM project_agents WHERE project_id = ?').all(projectId) as { agent_id: string; role: string | null }[]
-      if (team.length > 0) {
-        frontmatter.equipe = team.map(t => ({
-          agent: `[[Agents/${t.agent_id}]]`,
-          role: t.role || 'developer',
-        }))
-        if (!frontmatter.lead && team.length > 0) {
-          frontmatter.lead = `[[Agents/${team[0].agent_id}]]`
-        }
-      }
-
-      const body = `# ${project.name}\n\n> \n\n## Objectifs\n\n## Approche\n\n## Implementation\n\n## Risques & Dependances\n`
-      try {
-        writeVaultFile(filePath, frontmatter, body)
-        db.prepare('UPDATE projects SET vault_path = ? WHERE id = ?').run(filePath, projectId)
-        console.log(`[vault] Created vault file for project: ${projectId}`)
-      } catch (err) {
-        console.error(`[vault] Failed to create project vault file: ${projectId}`, err)
-      }
     }
   }
 }

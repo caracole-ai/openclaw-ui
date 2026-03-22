@@ -1,6 +1,12 @@
 /**
- * Pipeline launcher — spawns pipeline.py as a detached subprocess.
+ * Pipeline launcher — spawns the correct Python pipeline as a detached subprocess.
  * Fire-and-forget: the pipeline runs independently (5-10 min).
+ *
+ * Two pipeline types:
+ *   - 'incubation' → incubation_pipeline.py (6 agents, 3 phases, idea → project)
+ *   - 'specs'      → pipeline.py            (3 agents, 5 rounds, project → specs)
+ *
+ * The `type` field is REQUIRED to prevent routing errors.
  *
  * Broadcasting on completion is handled automatically by the
  * source-watcher plugin (it detects new/changed spec files in the vault).
@@ -12,13 +18,34 @@ import { getDb } from './db'
 
 const HOME = process.env.HOME || '/Users/caracole'
 const ORCHESTRATOR_DIR = join(HOME, 'Desktop/coding-projects/mattermost-orchestrator')
-const PIPELINE_SCRIPT = join(ORCHESTRATOR_DIR, 'pipeline.py')
 const PYTHON_PATH = join(ORCHESTRATOR_DIR, 'venv/bin/python')
 
+/**
+ * Pipeline type determines which Python script runs and which agents are used.
+ * - 'incubation': idea → project  (incubation_pipeline.py, team incubation)
+ * - 'specs':      project → specs (pipeline.py, team code)
+ */
+type PipelineType = 'incubation' | 'specs'
+
+const PIPELINE_CONFIG: Record<PipelineType, { script: string; defaultAgents: string[]; label: string }> = {
+  incubation: {
+    script: join(ORCHESTRATOR_DIR, 'incubation_pipeline.py'),
+    defaultAgents: ['iris', 'hugo', 'stella', 'felix', 'remi', 'gaelle'],
+    label: 'Incubation (idea → project)',
+  },
+  specs: {
+    script: join(ORCHESTRATOR_DIR, 'pipeline.py'),
+    defaultAgents: ['winston', 'amelia', 'walid'],
+    label: 'Specs (project → specs)',
+  },
+}
+
 // Track running pipelines to prevent duplicates
-const runningPipelines = new Map<string, { pid: number; startedAt: string }>()
+const runningPipelines = new Map<string, { pid: number; startedAt: string; type: PipelineType }>()
 
 interface LaunchOptions {
+  /** REQUIRED — determines which pipeline script + default agents to use */
+  type: PipelineType
   projectId: string
   projectName: string
   ideaVaultPath: string
@@ -36,18 +63,25 @@ export function launchPipeline(opts: LaunchOptions): { pid: number; status: stri
   // Guard: already running
   if (runningPipelines.has(opts.projectId)) {
     const info = runningPipelines.get(opts.projectId)!
-    console.log(`[pipeline] Already running for ${opts.projectId} (PID ${info.pid})`)
+    console.log(`[pipeline] Already running for ${opts.projectId} (PID ${info.pid}, type ${info.type})`)
     return { pid: info.pid, status: 'already_running' }
   }
 
-  const agents = opts.agentIds?.length ? opts.agentIds : ['winston', 'amelia', 'manolo']
-  const args = [PIPELINE_SCRIPT, opts.ideaVaultPath, '--agents', ...agents]
+  const pipelineConf = PIPELINE_CONFIG[opts.type]
+  const agents = opts.agentIds?.length ? opts.agentIds : pipelineConf.defaultAgents
+  const args = [pipelineConf.script, opts.ideaVaultPath]
+
+  // incubation_pipeline.py doesn't take --agents (fixed team), specs pipeline does
+  if (opts.type === 'specs') {
+    args.push('--agents', ...agents)
+  }
   if (opts.budget) args.push('--budget', String(opts.budget))
 
   // Redirect stdout/stderr to a log file so the detached process can write logs
   const logFile = join(ORCHESTRATOR_DIR, `pipeline-${opts.projectId}.log`)
   const logFd = openSync(logFile, 'w')
 
+  console.log(`[pipeline] Type: ${opts.type} (${pipelineConf.label})`)
   console.log(`[pipeline] Spawning: ${PYTHON_PATH} ${args.join(' ')}`)
   console.log(`[pipeline] Log file: ${logFile}`)
 
@@ -83,7 +117,7 @@ export function launchPipeline(opts: LaunchOptions): { pid: number; status: stri
 
   const now = new Date().toISOString()
   const pid = child.pid || 0
-  runningPipelines.set(opts.projectId, { pid, startedAt: now })
+  runningPipelines.set(opts.projectId, { pid, startedAt: now, type: opts.type })
 
   // Log start event in DB
   try {
@@ -92,7 +126,7 @@ export function launchPipeline(opts: LaunchOptions): { pid: number; status: stri
       `evt-pipeline-${Date.now()}`,
       'pipeline.started',
       'system',
-      JSON.stringify({ projectId: opts.projectId, projectName: opts.projectName, agents, pid }),
+      JSON.stringify({ projectId: opts.projectId, projectName: opts.projectName, type: opts.type, agents, pid }),
       now
     )
 
@@ -101,13 +135,13 @@ export function launchPipeline(opts: LaunchOptions): { pid: number; status: stri
     if (project) {
       db.prepare("UPDATE projects SET document_status = 'in_progress' WHERE id = ?").run(opts.projectId)
       db.prepare('INSERT INTO project_updates (project_id, agent_id, message, type, created_at) VALUES (?, ?, ?, ?, ?)')
-        .run(opts.projectId, 'pipeline', `Pipeline lancé — agents: ${agents.join(', ')}`, 'pipeline', now)
+        .run(opts.projectId, 'pipeline', `Pipeline ${opts.type} lancé — agents: ${agents.join(', ')}`, 'pipeline', now)
     }
   } catch (err) {
     console.error(`[pipeline] DB logging failed:`, err)
   }
 
-  console.log(`[pipeline] Launched for ${opts.projectId} (PID ${pid}, agents: ${agents.join(', ')})`)
+  console.log(`[pipeline] Launched ${opts.type} for ${opts.projectId} (PID ${pid}, agents: ${agents.join(', ')})`)
 
   // With stdio: 'ignore' + detached + unref, the child runs fully independently.
   // The exit handler won't fire reliably, so we DON'T track completion here.
