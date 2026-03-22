@@ -64,22 +64,43 @@ export default defineEventHandler(async (event) => {
     const vaultBase = join(process.env.HOME || '', 'Documents/ObsidianVault')
     const vaultDocs: typeof docs = []
 
-    // 1. Fiche projet + specs in Projets/
+    // 1. Fiche projet + specs in Projets/ (flat files and subfolder)
     const projetsDir = join(vaultBase, 'Projets')
     if (existsSync(projetsDir)) {
+      // Scan flat files matching project ID
       const files = readdirSync(projetsDir)
       for (const file of files) {
         if (file.endsWith('.md') && (file.startsWith(id) || file.includes(id))) {
           const filePath = join(projetsDir, file)
-          const stat = statSync(filePath)
+          const s = statSync(filePath)
           vaultDocs.push({
             name: file,
             path: filePath,
             folder: 'Obsidian/Projets',
-            size: stat.size,
-            modifiedAt: stat.mtime.toISOString(),
+            size: s.size,
+            modifiedAt: s.mtime.toISOString(),
             source: 'vault',
           })
+        }
+      }
+
+      // Scan project subfolder: Projets/{id}/*.md
+      const projectSubdir = join(projetsDir, id)
+      if (existsSync(projectSubdir)) {
+        const subFiles = readdirSync(projectSubdir)
+        for (const file of subFiles) {
+          if (file.endsWith('.md')) {
+            const filePath = join(projectSubdir, file)
+            const s = statSync(filePath)
+            vaultDocs.push({
+              name: file,
+              path: filePath,
+              folder: `Obsidian/Projets/${id}`,
+              size: s.size,
+              modifiedAt: s.mtime.toISOString(),
+              source: 'vault',
+            })
+          }
         }
       }
     }

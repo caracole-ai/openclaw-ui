@@ -5,6 +5,7 @@ export type WSEventType =
   | 'skill:pending'
   | 'approval:required'
   | 'tokens:updated'
+  | 'log:new'
   | 'data:updated' | 'connected'
 
 export interface WSEvent<T = any> {

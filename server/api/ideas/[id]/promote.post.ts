@@ -73,21 +73,21 @@ export default defineEventHandler(async (event) => {
     type: projectType,
     statut: 'planification',
     progression: 0,
-    phase_courante: 'planification',
-    idee_source: ideaFilename ? `[[Idées/${ideaFilename.replace('.md', '')}]]` : '',
+    idee_source: ideaFilename ? `[[${ideaFilename.replace('.md', '')}]]` : '',
     tags: idea.themes ? JSON.parse(idea.themes) : [],
     chemin: `~/Desktop/coding-projects/AUTO-BUILD/${slug}`,
     created_at: now,
     updated_at: now,
   }
 
-  // Add agents if provided
-  if (body.agents && Array.isArray(body.agents)) {
-    projectFrontmatter.equipe = body.agents.map((a: any) => ({
-      agent: `[[Agents/${a.id || a}]]`,
-      role: a.role || 'developer',
-    }))
-  }
+  // Add agents to vault frontmatter (provided or default pipeline team)
+  const vaultAgents = (body.agents && Array.isArray(body.agents) && body.agents.length > 0)
+    ? body.agents
+    : [{ id: 'winston', role: 'architect' }, { id: 'amelia', role: 'developer' }, { id: 'walid', role: 'devops' }]
+  projectFrontmatter.equipe = vaultAgents.map((a: any) => ({
+    agent: `[[Agents/${a.id || a}]]`,
+    role: a.role || 'developer',
+  }))
 
   // Use template body with placeholder substitution
   let projectBody = template.body
@@ -104,14 +104,21 @@ export default defineEventHandler(async (event) => {
     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
   `).run(slug, projectName, '', projectType, 'planning', 'planning', 0, projectPath, now, now)
 
-  // Assign agents
-  if (body.agents && Array.isArray(body.agents)) {
-    const insertPA = db.prepare('INSERT OR REPLACE INTO project_agents (project_id, agent_id, role) VALUES (?, ?, ?)')
-    for (const a of body.agents) {
-      const agentId = typeof a === 'string' ? a : a.id
-      const role = typeof a === 'string' ? null : a.role
-      insertPA.run(slug, agentId, role)
-    }
+  // Assign agents — use provided agents or default pipeline team
+  const defaultTeam = [
+    { id: 'winston', role: 'architect' },
+    { id: 'amelia', role: 'developer' },
+    { id: 'walid', role: 'devops' },
+  ]
+  const agents = (body.agents && Array.isArray(body.agents) && body.agents.length > 0)
+    ? body.agents
+    : defaultTeam
+
+  const insertPA = db.prepare('INSERT OR REPLACE INTO project_agents (project_id, agent_id, role) VALUES (?, ?, ?)')
+  for (const a of agents) {
+    const agentId = typeof a === 'string' ? a : a.id
+    const role = typeof a === 'string' ? null : a.role
+    insertPA.run(slug, agentId, role)
   }
 
   // 5. Update idea: statut → promue, projet_lie
@@ -130,12 +137,26 @@ export default defineEventHandler(async (event) => {
     }
   }
 
-  // 6. Log event
+  // 6. Log event + project history
   db.prepare('INSERT INTO events (id, type, actor, data, created_at) VALUES (?, ?, ?, ?, ?)').run(
     `evt-${Date.now()}`,
     'idea.promoted',
     'lio',
     JSON.stringify({ ideaId: id, projectId: slug }),
+    now
+  )
+
+  // Log promotion in project_updates for visible history
+  db.prepare('INSERT INTO project_updates (project_id, agent_id, message, type, created_at) VALUES (?, ?, ?, ?, ?)').run(
+    slug, 'system',
+    `Projet créé à partir de l'idée "${idea.titre}"`,
+    'created',
+    now
+  )
+  db.prepare('INSERT INTO project_updates (project_id, agent_id, message, type, created_at) VALUES (?, ?, ?, ?, ?)').run(
+    slug, 'system',
+    'Transition Backlog → Planning',
+    'state-change',
     now
   )
 
@@ -153,7 +174,7 @@ export default defineEventHandler(async (event) => {
       type: 'incubation',
       projectId: slug,
       projectName,
-      ideaVaultPath,
+      sourceVaultPath: ideaVaultPath,
     })
     console.log(`[promote] Pipeline result:`, JSON.stringify(pipelineResult))
   } catch (err) {

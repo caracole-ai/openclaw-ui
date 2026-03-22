@@ -25,6 +25,19 @@ export function unregisterWSClient(client: any) {
   wsClients.delete(client)
 }
 
+export function broadcastWSEvent(type: string, data: any) {
+  const message = JSON.stringify({ type, data, timestamp: new Date().toISOString() })
+  wsClients.forEach(client => {
+    try {
+      if (client.readyState === 1) {
+        client.send(message)
+      }
+    } catch (err) {
+      console.error('[ws] Failed to send event:', err)
+    }
+  })
+}
+
 export function broadcastDataUpdate() {
   const message = JSON.stringify({
     type: 'data:updated',

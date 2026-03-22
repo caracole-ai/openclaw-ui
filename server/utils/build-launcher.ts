@@ -22,22 +22,45 @@ interface BuildOptions {
 }
 
 /**
- * Extract the CLAUDE.md coding principles section from the project template.
- * Falls back to a minimal default if the template is unavailable.
+ * Load body content from a vault markdown file (everything after frontmatter and # title).
+ */
+function loadVaultNoteBody(relativePath: string): string {
+  const filePath = join(vaultConfig.basePath, relativePath)
+  if (!existsSync(filePath)) {
+    console.warn(`[build] Vault note not found: ${filePath}`)
+    return ''
+  }
+  const file = parseVaultFile(filePath)
+  // Strip the # title line, keep everything after
+  return file.body.replace(/^#[^\n]*\n/, '').trim()
+}
+
+/**
+ * Load coding principles from the canonical source in MetaFlow.
+ * Falls back to a minimal default if unavailable.
  */
 function loadCodingPrinciples(): string {
-  try {
-    const template = loadTemplate('projet')
-    // Extract everything from "## CLAUDE.md" to the next "## " or end of body
-    const claudeMatch = template.body.match(/## CLAUDE\.md[^\n]*\n([\s\S]*?)(?=\n## [^#]|$)/)
-    if (claudeMatch) return claudeMatch[1].trim()
-    // Fallback: extract any "### Coding Principles" section
-    const principlesMatch = template.body.match(/### Coding Principles\n([\s\S]*?)(?=\n## [^#]|$)/)
-    if (principlesMatch) return `## Coding Principles\n\n${principlesMatch[1].trim()}`
-  } catch (err) {
-    console.warn('[build] Failed to load coding principles from template, using fallback:', err)
-  }
-  return '## Coding Principles\n\nFollow existing patterns. No hardcoded values. SOLID principles. Keep docs in sync.'
+  const body = loadVaultNoteBody('MetaFlow/conventions/references/coding-principles/coding-principles.md')
+  if (body) return body
+  return '### 1. Coherence first\nFollow existing patterns. No hardcoded values. SOLID principles. Keep docs in sync.'
+}
+
+/**
+ * Load documentation projet rules from the canonical source in MetaFlow.
+ */
+function loadDocumentationProjet(): string {
+  const body = loadVaultNoteBody('MetaFlow/conventions/references/documentation-projet/documentation-projet.md')
+  if (body) return body
+  return 'Chaque projet DOIT maintenir une documentation technique dans `./doc`.'
+}
+
+/**
+ * Extract project-specific rules from specs content.
+ * Looks for a "## Regles specifiques" or "## Règles spécifiques" section.
+ */
+function extractReglesSpecifiques(specsContent: string): string {
+  const match = specsContent.match(/^##\s*R[eè]gles\s+sp[eé]cifiques[^\n]*\n([\s\S]*?)(?=\n## |$)/mi)
+  return match ? match[1].trim() : ''
 }
 
 /**
@@ -53,26 +76,34 @@ function trimSpecsConversation(specsContent: string): string {
   return specsContent.slice(0, match.index).trimEnd()
 }
 
+/**
+ * Generate CLAUDE.md from _template-build.md by replacing all placeholders.
+ * Sources:
+ *   {{titre}}                → projectName
+ *   {{coding_principles}}    → MetaFlow/conventions/references/coding-principles/coding-principles.md
+ *   {{documentation_projet}} → MetaFlow/conventions/references/documentation-projet/documentation-projet.md
+ *   {{specs_content}}        → Projets/<id>/specs.md (trimmed)
+ *   {{regles_specifiques}}   → extracted from specs "## Règles spécifiques" section
+ */
 function generateClaudeMd(projectName: string, specsContent: string): string {
   const trimmedSpecs = trimSpecsConversation(specsContent)
   const codingPrinciples = loadCodingPrinciples()
+  const documentationProjet = loadDocumentationProjet()
+  const reglesSpecifiques = extractReglesSpecifiques(specsContent)
 
-  const directives = `## Directives de build
-
-- Tu dois implémenter ce projet de A à Z selon les specs ci-dessus.
-- Utilise le MCP context7 pour vérifier la documentation officielle des libs/frameworks utilisés.
-- Structure du projet :
-  - README.md (description, installation, usage, architecture)
-  - package.json ou requirements.txt selon la stack
-  - src/ — code source
-  - tests/ — tests unitaires
-  - .env.example si variables d'environnement nécessaires
-- Le code doit être fonctionnel, testé, et prêt à run.
-- Pas de TODO ou placeholder — chaque feature doit être implémentée.
-- Suis les coding principles ci-dessus à la lettre.
-- Commence par créer la structure du projet, puis implémente feature par feature.`
-
-  return `# ${projectName}\n\n${codingPrinciples}\n\n## Specs du projet\n\n${trimmedSpecs}\n\n${directives}\n`
+  try {
+    const template = loadTemplate('build')
+    return template.body
+      .replace(/\{\{titre\}\}/g, projectName)
+      .replace(/\{\{coding_principles\}\}/g, codingPrinciples)
+      .replace(/\{\{documentation_projet\}\}/g, documentationProjet)
+      .replace(/\{\{specs_content\}\}/g, trimmedSpecs)
+      .replace(/\{\{regles_specifiques\}\}/g, reglesSpecifiques)
+  } catch (err) {
+    // Fallback: assemble manually if template unavailable
+    console.warn('[build] Failed to load _template-build.md, assembling manually:', err)
+    return `# ${projectName}\n\n## Coding Principles\n\n${codingPrinciples}\n\n## Documentation projet\n\n${documentationProjet}\n\n## Specs du projet\n\n${trimmedSpecs}\n`
+  }
 }
 
 function generateMcpJson(): string {
@@ -166,7 +197,7 @@ export function launchBuild(opts: BuildOptions): { pid: number; status: string }
       // Sync state to Obsidian vault to prevent reconciliation from reverting
       if (project.vault_path && existsSync(project.vault_path)) {
         try {
-          updateVaultFrontmatter(project.vault_path, { statut: 'build', phase_courante: 'build' })
+          updateVaultFrontmatter(project.vault_path, { statut: 'build' })
         } catch (err) {
           console.error(`[build] Vault sync failed:`, err)
         }

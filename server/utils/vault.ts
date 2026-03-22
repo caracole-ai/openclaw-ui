@@ -140,6 +140,8 @@ export function ensureVaultDirs(): void {
 
 // ─── Slug ───
 
+const MAX_SHORTNAME_LENGTH = 16
+
 export function toVaultSlug(text: string): string {
   return text
     .toLowerCase()
@@ -147,7 +149,8 @@ export function toVaultSlug(text: string): string {
     .replace(/[\u0300-\u036f]/g, '')
     .replace(/[^a-z0-9]+/g, '-')
     .replace(/^-+|-+$/g, '')
-    .substring(0, 60)
+    .substring(0, MAX_SHORTNAME_LENGTH)
+    .replace(/-+$/, '')
 }
 
 /**
@@ -544,7 +547,6 @@ export function syncProjectsToVault(): void {
           statut: obsidianStatut,
           progression: project.progress || 0,
           workspace: project.workspace || file.frontmatter.workspace || '',
-          phase_courante: project.current_phase || file.frontmatter.phase_courante || '',
         }
         // Update github if changed
         if (project.github_repo) {

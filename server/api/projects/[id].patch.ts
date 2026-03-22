@@ -81,7 +81,6 @@ export default defineEventHandler(async (event) => {
       try {
         updateVaultFrontmatter(vaultPath, {
           statut: stateToStatut[body.state] || body.state,
-          phase_courante: body.state,
         })
       } catch (err) {
         console.error(`[patch] Vault state sync failed for ${id}:`, err)
@@ -162,31 +161,36 @@ export default defineEventHandler(async (event) => {
     }
   }
 
-  // --- Pipeline hook: planning state triggers idea-to-specs pipeline ---
+  // --- Pipeline hook: planning state triggers project-to-specs pipeline ---
   if (newState && newState !== oldState && newState === 'planning') {
     if (existing.document_status !== 'completed') {
-      const idea = db.prepare("SELECT vault_path FROM ideas WHERE projet_lie LIKE ?")
-        .get(`%${id}%`) as { vault_path: string } | undefined
+      // Pass the project fiche (enriched by incubation), not the raw idea
+      const projectVaultPath = join(vaultConfig.basePath, 'Projets', id, `${id}.md`)
+      const projectFileExists = existsSync(projectVaultPath)
 
-      if (idea?.vault_path) {
+      if (projectFileExists) {
         try {
           launchPipeline({
             type: 'specs',
             projectId: id,
             projectName: existing.name,
-            ideaVaultPath: idea.vault_path,
+            sourceVaultPath: projectVaultPath,
           })
         } catch (err) {
           console.error(`[patch] Pipeline launch failed for ${id}:`, err)
         }
+      } else {
+        console.error(`[patch] Project fiche not found at ${projectVaultPath} — cannot launch specs pipeline`)
       }
     }
   }
 
   // --- Build hook: build state triggers Claude Code auto-build ---
   if (newState && newState !== oldState && newState === 'build') {
-    const specsSlug = `${id}-specs`
-    const specsPath = join(vaultConfig.basePath, 'Projets', `${specsSlug}.md`)
+    // Specs path: try subfolder convention first (Projets/<id>/specs.md), fallback to flat (<id>-specs.md)
+    const subfolderSpecsPath = join(vaultConfig.basePath, 'Projets', id, 'specs.md')
+    const flatSpecsPath = join(vaultConfig.basePath, 'Projets', `${id}-specs.md`)
+    const specsPath = existsSync(subfolderSpecsPath) ? subfolderSpecsPath : flatSpecsPath
 
     if (existsSync(specsPath)) {
       try {
@@ -199,14 +203,15 @@ export default defineEventHandler(async (event) => {
         console.error(`[patch] Build launch failed for ${id}:`, err)
       }
     } else {
-      console.warn(`[patch] No specs found for ${id} at ${specsPath} — skipping build`)
+      console.warn(`[patch] No specs found for ${id} at ${subfolderSpecsPath} or ${flatSpecsPath} — skipping build`)
     }
   }
 
   // --- Review hook: review state triggers Claude Code testing ---
   if (newState && newState !== oldState && newState === 'review') {
-    const specsSlug = `${id}-specs`
-    const specsPath = join(vaultConfig.basePath, 'Projets', `${specsSlug}.md`)
+    const subfolderSpecsPath = join(vaultConfig.basePath, 'Projets', id, 'specs.md')
+    const flatSpecsPath = join(vaultConfig.basePath, 'Projets', `${id}-specs.md`)
+    const specsPath = existsSync(subfolderSpecsPath) ? subfolderSpecsPath : flatSpecsPath
     const projectDir = join(process.env.HOME || '', 'Desktop/coding-projects/AUTO-BUILD', id)
 
     if (existsSync(projectDir)) {

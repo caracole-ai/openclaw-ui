@@ -168,6 +168,22 @@ CREATE TABLE IF NOT EXISTS events (
   created_at TEXT DEFAULT (datetime('now'))
 );
 
+CREATE TABLE IF NOT EXISTS python_logs (
+  id TEXT PRIMARY KEY,
+  script TEXT NOT NULL,
+  level TEXT NOT NULL,
+  message TEXT NOT NULL,
+  function TEXT,
+  module TEXT,
+  args TEXT,
+  return_value TEXT,
+  traceback TEXT,
+  created_at TEXT DEFAULT (datetime('now'))
+);
+CREATE INDEX IF NOT EXISTS idx_python_logs_script ON python_logs(script);
+CREATE INDEX IF NOT EXISTS idx_python_logs_level ON python_logs(level);
+CREATE INDEX IF NOT EXISTS idx_python_logs_created ON python_logs(created_at);
+
 CREATE TABLE IF NOT EXISTS ideas (
   id TEXT PRIMARY KEY,
   titre TEXT NOT NULL,

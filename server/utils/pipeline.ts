@@ -48,16 +48,20 @@ interface LaunchOptions {
   type: PipelineType
   projectId: string
   projectName: string
-  ideaVaultPath: string
+  /** Path to the source file: project fiche for specs, idea fiche for incubation */
+  sourceVaultPath: string
+  /** @deprecated Use sourceVaultPath instead */
+  ideaVaultPath?: string
   agentIds?: string[]
   budget?: number
 }
 
 export function launchPipeline(opts: LaunchOptions): { pid: number; status: string } {
-  // Guard: no idea path
-  if (!opts.ideaVaultPath) {
-    console.error(`[pipeline] No idea vault path for ${opts.projectId} — skipping`)
-    return { pid: 0, status: 'no_idea_path' }
+  // Support both new sourceVaultPath and deprecated ideaVaultPath
+  const sourcePath = opts.sourceVaultPath || opts.ideaVaultPath
+  if (!sourcePath) {
+    console.error(`[pipeline] No source vault path for ${opts.projectId} — skipping`)
+    return { pid: 0, status: 'no_source_path' }
   }
 
   // Guard: already running
@@ -69,7 +73,7 @@ export function launchPipeline(opts: LaunchOptions): { pid: number; status: stri
 
   const pipelineConf = PIPELINE_CONFIG[opts.type]
   const agents = opts.agentIds?.length ? opts.agentIds : pipelineConf.defaultAgents
-  const args = [pipelineConf.script, opts.ideaVaultPath]
+  const args = [pipelineConf.script, sourcePath]
 
   // incubation_pipeline.py doesn't take --agents (fixed team), specs pipeline does
   if (opts.type === 'specs') {
@@ -111,6 +115,23 @@ export function launchPipeline(opts: LaunchOptions): { pid: number; status: stri
   child.on('error', (err) => {
     console.error(`[pipeline] Spawn error for ${opts.projectId}:`, err)
     runningPipelines.delete(opts.projectId)
+  })
+
+  child.on('exit', (code, signal) => {
+    runningPipelines.delete(opts.projectId)
+    const status = code === 0 ? 'completed' : `failed (code=${code}, signal=${signal})`
+    console.log(`[pipeline] ${opts.type} for ${opts.projectId} ${status}`)
+    try {
+      const db = getDb()
+      db.prepare('INSERT INTO events (id, type, actor, data, created_at) VALUES (?, ?, ?, ?, ?)')
+        .run(
+          `evt-pipeline-end-${Date.now()}`,
+          code === 0 ? 'pipeline.completed' : 'pipeline.failed',
+          'system',
+          JSON.stringify({ projectId: opts.projectId, type: opts.type, code, signal }),
+          new Date().toISOString()
+        )
+    } catch {}
   })
 
   child.unref()
