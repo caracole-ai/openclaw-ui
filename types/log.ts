@@ -9,6 +9,7 @@ export interface LogEntry {
   return_value: string | null
   traceback: string | null
   created_at: string
+  source?: 'python' | 'build'
 }
 
 export interface LogStats {

@@ -32,6 +32,8 @@ export interface DbProject {
   channel_id: string | null
   idea_channel_id: string | null
   document_status: string
+  review_round: number
+  build_attempt: number
   workspace: string | null
   github_repo: string | null
   github_created: number
@@ -118,6 +120,24 @@ export interface DbMcp {
 export interface DbAgentMcp {
   agent_id: string
   mcp_id: string
+}
+
+export interface DbBuildEvent {
+  id: string
+  project_id: string
+  session_id: string | null
+  type: string
+  tool_name: string | null
+  summary: string
+  file_path: string | null
+  command: string | null
+  is_error: number  // SQLite boolean
+  error_text: string | null
+  parent_tool_use_id: string | null
+  cost_usd: number | null
+  duration_ms: number | null
+  num_turns: number | null
+  created_at: string
 }
 
 export interface DbIdea {

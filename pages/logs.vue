@@ -42,7 +42,7 @@
       <!-- Data State -->
       <template v-else>
         <!-- KPI Cards -->
-        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-6 mb-8">
           <!-- Total today -->
           <div class="bg-white rounded-xl shadow-sm border p-6">
             <p class="text-sm text-gray-500 mb-1">Total aujourd'hui</p>
@@ -67,11 +67,36 @@
             <p class="text-3xl font-bold text-green-600">{{ stats?.active_scripts?.length || 0 }}</p>
             <p class="text-xs text-gray-400 mt-1 truncate">{{ (stats?.active_scripts || []).join(', ') || 'aucun' }}</p>
           </div>
+          <!-- Build events -->
+          <div class="bg-white rounded-xl shadow-sm border p-6">
+            <p class="text-sm text-gray-500 mb-1">Build events</p>
+            <p class="text-3xl font-bold text-purple-600">{{ (stats as any)?.build_events_today || 0 }}</p>
+            <p class="text-xs text-gray-400 mt-1 truncate">
+              {{ ((stats as any)?.active_builds || []).length }} builds actifs
+            </p>
+          </div>
         </div>
 
         <!-- Filters -->
         <div class="bg-white rounded-xl shadow-sm border p-4 mb-6">
           <div class="flex flex-wrap items-center gap-3">
+            <!-- Source filter -->
+            <div class="flex items-center gap-1">
+              <button
+                v-for="src in sources"
+                :key="src.key"
+                class="px-3 py-1.5 text-xs font-medium rounded-lg transition-colors"
+                :class="sourceFilter === src.key
+                  ? src.activeClass
+                  : 'bg-gray-100 text-gray-600 hover:bg-gray-200'"
+                @click="setSource(src.key)"
+              >
+                {{ src.label }}
+              </button>
+            </div>
+
+            <div class="w-px h-6 bg-gray-200"></div>
+
             <!-- Level filter -->
             <div class="flex items-center gap-1">
               <button
@@ -170,6 +195,10 @@
                       </span>
                     </td>
                     <td class="px-4 py-2 text-xs font-mono text-gray-700 truncate max-w-[120px]">
+                      <span
+                        v-if="log.source === 'build'"
+                        class="inline-block px-1 py-0.5 mr-1 text-[10px] font-semibold rounded bg-purple-100 text-purple-700"
+                      >BUILD</span>
                       {{ log.script }}
                     </td>
                     <td class="px-4 py-2 text-xs font-mono text-gray-500 truncate max-w-[120px]">
@@ -288,9 +317,16 @@
 import { ref, computed, watch, nextTick } from 'vue'
 import type { LogEntry } from '~/types/log'
 
-useHead({ title: 'Logs Python - OpenClaw Dashboard' })
+useHead({ title: 'Logs - OpenClaw Dashboard' })
 
-const { logs, stats, fetchLogs, fetchStats, loading, error } = usePythonLogs()
+const { logs, stats, fetchLogs, fetchStats, loading, error, sourceFilter } = usePythonLogs()
+
+// ─── Source filter ───
+const sources = [
+  { key: 'all' as const, label: 'Tous', activeClass: 'bg-blue-600 text-white' },
+  { key: 'python' as const, label: 'Python', activeClass: 'bg-green-600 text-white' },
+  { key: 'build' as const, label: 'Build', activeClass: 'bg-purple-600 text-white' },
+]
 
 // ─── Filters ───
 const levels = ['ALL', 'DEBUG', 'INFO', 'WARNING', 'ERROR'] as const
@@ -373,8 +409,15 @@ function debouncedSearch() {
   }, 300)
 }
 
+function setSource(src: 'all' | 'python' | 'build') {
+  sourceFilter.value = src
+  currentPage.value = 1
+  applyFilters()
+}
+
 function applyFilters() {
   fetchLogs({
+    source: sourceFilter.value,
     level: selectedLevel.value !== 'ALL' ? selectedLevel.value : undefined,
     script: selectedScript.value || undefined,
     search: searchQuery.value || undefined,

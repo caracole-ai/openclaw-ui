@@ -6,6 +6,7 @@ export type WSEventType =
   | 'approval:required'
   | 'tokens:updated'
   | 'log:new'
+  | 'build:event'
   | 'data:updated' | 'connected'
 
 export interface WSEvent<T = any> {

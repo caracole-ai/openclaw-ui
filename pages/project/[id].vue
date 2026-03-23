@@ -94,6 +94,28 @@
       </div>
 
       <!-- ═══════════════════════════════════════════════════════════════ -->
+      <!-- PIPELINE STATUS BANNER -->
+      <!-- ═══════════════════════════════════════════════════════════════ -->
+      <div
+        v-if="pipelineStatus"
+        class="rounded-xl border px-4 py-3 flex items-center gap-3"
+        :class="pipelineStatus.class"
+      >
+        <span class="text-lg">{{ pipelineStatus.icon }}</span>
+        <div class="flex-1">
+          <div class="font-medium text-sm">{{ pipelineStatus.label }}</div>
+          <div class="text-xs opacity-75">{{ pipelineStatus.detail }}</div>
+        </div>
+        <span
+          v-if="pipelineStatus.active"
+          class="relative flex h-3 w-3"
+        >
+          <span class="animate-ping absolute inline-flex h-full w-full rounded-full opacity-75" :class="pipelineStatus.dotClass"></span>
+          <span class="relative inline-flex rounded-full h-3 w-3" :class="pipelineStatus.dotClass"></span>
+        </span>
+      </div>
+
+      <!-- ═══════════════════════════════════════════════════════════════ -->
       <!-- BENTO GRID LAYOUT -->
       <!-- ═══════════════════════════════════════════════════════════════ -->
       <div class="grid grid-cols-1 lg:grid-cols-12 gap-6">
@@ -146,27 +168,13 @@
           </div>
 
           <!-- ─────────────────────────────────────────────────────────────── -->
-          <!-- BUILD LOG (live) -->
+          <!-- BUILD TIMELINE (live) -->
           <!-- ─────────────────────────────────────────────────────────────── -->
-          <div v-if="buildLog.exists || project.state === 'build' || project.state === 'review'" class="bg-gray-900 rounded-xl border border-gray-700 overflow-hidden">
-            <div class="flex items-center justify-between px-4 py-3 border-b border-gray-700">
-              <div class="flex items-center gap-2">
-                <span class="text-lg">📦</span>
-                <h3 class="text-sm font-bold text-gray-200">
-                  {{ buildLog.reviewing ? 'Review Log' : 'Build Log' }}
-                </h3>
-                <span v-if="buildLog.building || buildLog.reviewing" class="relative flex h-2 w-2">
-                  <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-green-400 opacity-75"></span>
-                  <span class="relative inline-flex rounded-full h-2 w-2 bg-green-500"></span>
-                </span>
-              </div>
-              <span class="text-xs text-gray-500 font-mono">{{ formatBytes(buildLog.size) }}</span>
-            </div>
-            <div
-              ref="buildLogContainer"
-              class="p-4 font-mono text-xs text-green-400 bg-gray-950 overflow-y-auto max-h-[400px] whitespace-pre-wrap"
-            >{{ buildLog.content || 'En attente du log...' }}</div>
-          </div>
+          <BuildTimeline
+            v-if="buildLog.exists || project.state === 'build' || project.state === 'review'"
+            :project-id="project.id"
+            :building="buildLog.building || buildLog.reviewing"
+          />
 
           <!-- ─────────────────────────────────────────────────────────────── -->
           <!-- DOCUMENTATION -->
@@ -594,28 +602,20 @@ const currentDoc = ref<DocFile | null>(null)
 const docContent = ref('')
 const docLoading = ref(false)
 
-// Build log polling
-const buildLog = ref({ content: '', size: 0, exists: false, building: false, reviewing: false })
-const buildLogContainer = ref<HTMLElement | null>(null)
+// Build log status polling (lightweight — timeline component handles event display)
+const buildLog = ref({ exists: false, building: false, reviewing: false })
 let buildLogTimer: ReturnType<typeof setInterval> | null = null
 
-async function fetchBuildLog() {
+async function fetchBuildStatus() {
   try {
     const data: any = await $fetch(`/api/projects/${route.params.id}/build-log`)
-    buildLog.value = data
-    // Auto-scroll to bottom
-    await nextTick()
-    if (buildLogContainer.value) {
-      buildLogContainer.value.scrollTop = buildLogContainer.value.scrollHeight
-    }
+    buildLog.value = { exists: data.exists, building: data.building, reviewing: data.reviewing }
   } catch {}
 }
 
 if (!import.meta.server) {
-  // Initial fetch
-  fetchBuildLog()
-  // Poll every 3s
-  buildLogTimer = setInterval(fetchBuildLog, 3000)
+  fetchBuildStatus()
+  buildLogTimer = setInterval(fetchBuildStatus, 5000)
   onUnmounted(() => { if (buildLogTimer) clearInterval(buildLogTimer) })
 }
 
@@ -752,6 +752,52 @@ const statusLabel = computed(() => {
   return labels[project.value?.state || ''] || project.value?.state
 })
 
+const pipelineStatus = computed(() => {
+  const p = project.value
+  if (!p) return null
+  const ds = p.documentStatus || 'pending'
+  const round = p.reviewRound || 0
+  const attempt = p.buildAttempt || 0
+
+  // Building
+  if (p.state === 'build' && ds === 'building') {
+    return { icon: '🔨', label: 'Build en cours', detail: 'Claude Code construit le projet...', active: true, class: 'bg-blue-50 border-blue-200 text-blue-800', dotClass: 'bg-blue-500' }
+  }
+  if (ds === 'built') {
+    return { icon: '🔨', label: 'Build terminé', detail: 'En attente de validation', active: false, class: 'bg-blue-50 border-blue-200 text-blue-700', dotClass: '' }
+  }
+  if (ds === 'build_failed') {
+    return { icon: '❌', label: 'Build échoué', detail: 'Claude Code a échoué', active: false, class: 'bg-red-50 border-red-200 text-red-800', dotClass: '' }
+  }
+
+  // Validation gate
+  if (ds === 'validating') {
+    return { icon: '✅', label: `Validation gate (attempt ${attempt}/3)`, detail: 'npm install + build + test...', active: true, class: 'bg-emerald-50 border-emerald-200 text-emerald-800', dotClass: 'bg-emerald-500' }
+  }
+  if (ds === 'validated') {
+    return { icon: '✅', label: 'Validation OK', detail: 'Code compile et tests passent', active: false, class: 'bg-emerald-50 border-emerald-200 text-emerald-700', dotClass: '' }
+  }
+  if (ds === 'build_unstable') {
+    return { icon: '⚠️', label: `Build instable (${attempt} fix tentés)`, detail: 'Passé en review malgré des erreurs de compilation', active: false, class: 'bg-amber-50 border-amber-200 text-amber-800', dotClass: '' }
+  }
+
+  // Review
+  if (ds === 'reviewing') {
+    return { icon: '🔍', label: `Review en cours (round ${round}/5)`, detail: 'Tests exhaustifs : features, E2E, sécurité...', active: true, class: 'bg-purple-50 border-purple-200 text-purple-800', dotClass: 'bg-purple-500' }
+  }
+  if (ds === 'review_failed') {
+    return { icon: '🔧', label: `Review échouée (round ${round}/5)`, detail: 'Fix agent en cours, puis re-review automatique', active: true, class: 'bg-orange-50 border-orange-200 text-orange-800', dotClass: 'bg-orange-500' }
+  }
+  if (ds === 'reviewed') {
+    return { icon: '✅', label: `Review passée (round ${round})`, detail: 'Toutes les features testées positivement', active: false, class: 'bg-green-50 border-green-200 text-green-700', dotClass: '' }
+  }
+  if (ds === 'reviewed_with_caveats') {
+    return { icon: '⚠️', label: `Livré avec réserves (${round} rounds)`, detail: 'Limite de rounds atteinte — voir remaining-audit.md', active: false, class: 'bg-amber-50 border-amber-200 text-amber-800', dotClass: '' }
+  }
+
+  return null
+})
+
 const completedPhases = computed(() => {
   return project.value?.phases?.filter(p => p.status === 'completed').length ?? 0
 })
@@ -855,6 +901,7 @@ const sortedUpdates = computed(() => {
 function getUpdateIcon(type?: string): string {
   switch (type) {
     case 'status': return '🔄'
+    case 'state-change': return '🔄'
     case 'progress': return '📈'
     case 'phase': return '📋'
     case 'note': return '💬'
@@ -862,6 +909,10 @@ function getUpdateIcon(type?: string): string {
     case 'assignment': return '👤'
     case 'created': return '🎉'
     case 'nudge': return '📢'
+    case 'build': return '🔨'
+    case 'review': return '🔍'
+    case 'error': return '❌'
+    case 'validation': return '✅'
     default: return '📝'
   }
 }

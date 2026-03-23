@@ -11,6 +11,7 @@ import { launchBuild } from '~/server/utils/build-launcher'
 import { launchReview } from '~/server/utils/review-launcher'
 import { serializeProject } from '~/server/utils/serializers'
 import { vaultConfig, updateVaultFrontmatter } from '~/server/utils/vault'
+import { clearStaleState } from '~/server/utils/project-transitions'
 import type { DbProject, DbProjectAgent, DbProjectPhase, DbProjectUpdate } from '~/server/types/db'
 
 const ALLOWED_FIELDS = ['name', 'description', 'type', 'status', 'state', 'progress', 'lead', 'channel', 'channel_id', 'workspace', 'github_repo', 'github_created', 'current_phase', 'last_nudge_at']
@@ -187,6 +188,9 @@ export default defineEventHandler(async (event) => {
 
   // --- Build hook: build state triggers Claude Code auto-build ---
   if (newState && newState !== oldState && newState === 'build') {
+    // Reset validation/review counters and stale error context
+    clearStaleState(id)
+
     // Specs path: try subfolder convention first (Projets/<id>/specs.md), fallback to flat (<id>-specs.md)
     const subfolderSpecsPath = join(vaultConfig.basePath, 'Projets', id, 'specs.md')
     const flatSpecsPath = join(vaultConfig.basePath, 'Projets', `${id}-specs.md`)
@@ -208,7 +212,16 @@ export default defineEventHandler(async (event) => {
   }
 
   // --- Review hook: review state triggers Claude Code testing ---
-  if (newState && newState !== oldState && newState === 'review') {
+  // Idempotent: also fires when state is already 'review' but review hasn't started
+  // (handles vault reconciliation desync where state was set before hook could fire)
+  const shouldTriggerReview = newState === 'review' && (
+    newState !== oldState ||
+    (existing as any).document_status === 'built' ||
+    (existing as any).document_status === 'validated' ||
+    (existing as any).document_status === 'build_unstable' ||
+    (existing as any).document_status === 'review_failed'
+  )
+  if (shouldTriggerReview) {
     const subfolderSpecsPath = join(vaultConfig.basePath, 'Projets', id, 'specs.md')
     const flatSpecsPath = join(vaultConfig.basePath, 'Projets', `${id}-specs.md`)
     const specsPath = existsSync(subfolderSpecsPath) ? subfolderSpecsPath : flatSpecsPath

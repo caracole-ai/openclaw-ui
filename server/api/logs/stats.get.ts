@@ -46,6 +46,21 @@ export default defineEventHandler(() => {
     "SELECT * FROM python_logs WHERE level IN ('ERROR', 'CRITICAL') ORDER BY created_at DESC LIMIT 5"
   ).all() as LogEntry[]
 
+  // Build events stats
+  const build_events_today = (db.prepare(
+    'SELECT COUNT(*) as count FROM build_events WHERE created_at >= ?'
+  ).get(today) as any)?.count || 0
+
+  const active_builds = db.prepare(`
+    SELECT DISTINCT be.project_id FROM build_events be
+    WHERE be.type = 'init'
+      AND be.created_at >= datetime('now', '-2 hours')
+      AND NOT EXISTS (
+        SELECT 1 FROM build_events r
+        WHERE r.project_id = be.project_id AND r.type = 'result' AND r.created_at > be.created_at
+      )
+  `).all().map((r: any) => r.project_id) as string[]
+
   return {
     total_today,
     errors_today,
@@ -54,5 +69,7 @@ export default defineEventHandler(() => {
     by_level,
     by_script,
     latest_errors,
-  } satisfies LogStats
+    build_events_today,
+    active_builds,
+  }
 })

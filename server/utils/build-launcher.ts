@@ -7,6 +7,7 @@ import { join } from 'path'
 import { mkdirSync, writeFileSync, readFileSync, openSync, existsSync } from 'fs'
 import { getDb } from './db'
 import { parseVaultFile, updateVaultFrontmatter, loadTemplate, vaultConfig } from './vault'
+import { launchValidationGate } from './validation-gate'
 
 const HOME = process.env.HOME || '/Users/caracole'
 const CLAUDE_PATH = join(HOME, '.local/bin/claude')
@@ -157,6 +158,7 @@ export function launchBuild(opts: BuildOptions): { pid: number; status: string }
 
   const child = spawn(CLAUDE_PATH, [
     '--dangerously-skip-permissions',
+    '--verbose',
     '--output-format', 'stream-json',
     '-p', prompt
   ], {
@@ -239,15 +241,13 @@ export function launchBuild(opts: BuildOptions): { pid: number; status: string }
             success ? 'build' : 'error', endTime
           )
 
-        // Auto-transition to review if build succeeded (via PATCH = DB + vault + hooks)
+        // On success, run validation gate (install + build + test) before review
         if (success) {
-          const baseUrl = process.env.NUXT_PUBLIC_BASE_URL || 'http://localhost:3333'
-          fetch(`${baseUrl}/api/projects/${opts.projectId}`, {
-            method: 'PATCH',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ state: 'review' }),
+          launchValidationGate({
+            projectId: opts.projectId,
+            projectName: opts.projectName,
           }).catch(err => {
-            console.error(`[build] Auto-review trigger failed:`, err)
+            console.error(`[build] Validation gate failed:`, err)
           })
         }
       }

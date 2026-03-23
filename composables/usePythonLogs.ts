@@ -1,11 +1,13 @@
 import { ref } from 'vue'
 import type { LogEntry, LogStats } from '~/types/log'
+import type { BuildEvent } from '~/types/build-event'
 
 // Singleton state
 const logs = ref<LogEntry[]>([])
 const stats = ref<LogStats | null>(null)
 const loading = ref(false)
 const error = ref<string | null>(null)
+const sourceFilter = ref<'all' | 'python' | 'build'>('all')
 let fetched = false
 
 const MAX_LIVE_LOGS = 500
@@ -18,6 +20,24 @@ interface LogFilters {
   search?: string
   from?: string
   to?: string
+  source?: 'all' | 'python' | 'build'
+}
+
+/** Map a BuildEvent to a LogEntry for unified display */
+function buildEventToLogEntry(ev: BuildEvent): LogEntry {
+  return {
+    id: ev.id,
+    script: ev.toolName || ev.type,
+    level: ev.isError ? 'ERROR' : 'INFO',
+    message: ev.summary,
+    function: ev.projectId,
+    module: null,
+    args: ev.command || ev.filePath || null,
+    return_value: null,
+    traceback: ev.errorText,
+    created_at: ev.createdAt,
+    source: 'build',
+  }
 }
 
 async function fetchLogs(filters?: LogFilters) {
@@ -25,6 +45,8 @@ async function fetchLogs(filters?: LogFilters) {
   error.value = null
   try {
     const qs = new URLSearchParams()
+    const source = filters?.source || sourceFilter.value
+    if (source !== 'all') qs.set('source', source)
     if (filters?.level && filters.level !== 'ALL') qs.set('level', filters.level)
     if (filters?.script) qs.set('script', filters.script)
     if (filters?.limit) qs.set('limit', String(filters.limit))
@@ -54,9 +76,18 @@ export function usePythonLogs() {
   if (!import.meta.server && !fetched) {
     const { on } = useWebSocket()
 
-    // Real-time: new log entries streamed via WS
+    // Real-time: new Python log entries streamed via WS
     on('log:new', (entry: LogEntry) => {
-      logs.value = [entry, ...logs.value].slice(0, MAX_LIVE_LOGS)
+      if (sourceFilter.value === 'build') return // skip python logs when filtering for build only
+      const enriched = { ...entry, source: 'python' as const }
+      logs.value = [enriched, ...logs.value].slice(0, MAX_LIVE_LOGS)
+    })
+
+    // Real-time: new build events streamed via WS
+    on('build:event', (ev: BuildEvent) => {
+      if (sourceFilter.value === 'python') return // skip build events when filtering for python only
+      const logEntry = buildEventToLogEntry(ev)
+      logs.value = [logEntry, ...logs.value].slice(0, MAX_LIVE_LOGS)
     })
 
     // Refresh stats on general data updates
@@ -69,5 +100,5 @@ export function usePythonLogs() {
     fetched = true
   }
 
-  return { logs, stats, fetchLogs, fetchStats, loading, error }
+  return { logs, stats, fetchLogs, fetchStats, loading, error, sourceFilter }
 }

@@ -184,6 +184,27 @@ CREATE INDEX IF NOT EXISTS idx_python_logs_script ON python_logs(script);
 CREATE INDEX IF NOT EXISTS idx_python_logs_level ON python_logs(level);
 CREATE INDEX IF NOT EXISTS idx_python_logs_created ON python_logs(created_at);
 
+CREATE TABLE IF NOT EXISTS build_events (
+  id TEXT PRIMARY KEY,
+  project_id TEXT NOT NULL,
+  session_id TEXT,
+  type TEXT NOT NULL,
+  tool_name TEXT,
+  summary TEXT NOT NULL,
+  file_path TEXT,
+  command TEXT,
+  is_error INTEGER DEFAULT 0,
+  error_text TEXT,
+  parent_tool_use_id TEXT,
+  cost_usd REAL,
+  duration_ms INTEGER,
+  num_turns INTEGER,
+  created_at TEXT DEFAULT (datetime('now'))
+);
+CREATE INDEX IF NOT EXISTS idx_build_events_project ON build_events(project_id);
+CREATE INDEX IF NOT EXISTS idx_build_events_created ON build_events(created_at);
+CREATE INDEX IF NOT EXISTS idx_build_events_type ON build_events(type);
+
 CREATE TABLE IF NOT EXISTS ideas (
   id TEXT PRIMARY KEY,
   titre TEXT NOT NULL,
@@ -224,6 +245,8 @@ function runMigrations(db: Database.Database) {
   }
   addColumnIfMissing('projects', 'vault_path', 'TEXT')
   addColumnIfMissing('agents', 'vault_path', 'TEXT')
+  addColumnIfMissing('projects', 'review_round', 'INTEGER DEFAULT 0')
+  addColumnIfMissing('projects', 'build_attempt', 'INTEGER DEFAULT 0')
 
   // Check if already seeded
   const seeded = db.prepare('SELECT value FROM meta WHERE key = ?').get('seeded')

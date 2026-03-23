@@ -216,9 +216,26 @@ export function syncProjectsToDb(): void {
   const db = getDb()
   const files = listVaultFiles('projects')
 
+  // INSERT on first sync, UPDATE vault-sourced fields only on subsequent syncs.
+  // Preserves operational columns (document_status, review_round, build_attempt,
+  // channel, channel_id) that are managed by launchers, not the vault.
   const upsert = db.prepare(`
-    INSERT OR REPLACE INTO projects (id, name, description, type, status, state, progress, lead, workspace, github_repo, github_created, current_phase, vault_path, created_at, updated_at)
+    INSERT INTO projects (id, name, description, type, status, state, progress, lead, workspace, github_repo, github_created, current_phase, vault_path, created_at, updated_at)
     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    ON CONFLICT(id) DO UPDATE SET
+      name = excluded.name,
+      description = excluded.description,
+      type = excluded.type,
+      status = excluded.status,
+      state = excluded.state,
+      progress = excluded.progress,
+      lead = excluded.lead,
+      workspace = COALESCE(projects.workspace, excluded.workspace),
+      github_repo = COALESCE(projects.github_repo, excluded.github_repo),
+      github_created = CASE WHEN excluded.github_created = 1 THEN 1 ELSE projects.github_created END,
+      current_phase = excluded.current_phase,
+      vault_path = excluded.vault_path,
+      updated_at = excluded.updated_at
   `)
 
   const upsertPA = db.prepare('INSERT OR REPLACE INTO project_agents (project_id, agent_id, role) VALUES (?, ?, ?)')
